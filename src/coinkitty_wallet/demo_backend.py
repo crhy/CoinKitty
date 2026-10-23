@@ -541,11 +541,13 @@ class DemoBackend:
         high = bounty.price * 120 // 100
         placed: list[Bid] = []
         for _ in range(3):
+            price = rng.randrange(low, high + 1)
+            price -= price % 10**22  # whole 0.01 KITTY, so bids read cleanly
             bid = Bid(
                 id=uuid.uuid4().hex,
                 bounty_id=bounty.id,
                 bidder=f"Kitty-{rng.randrange(16 ** 8):08x}",
-                price=rng.randrange(low, high + 1),
+                price=price,
                 reputation=rng.randint(1, 100),
             )
             bounty.bids.append(bid)

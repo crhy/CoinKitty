@@ -17,16 +17,9 @@ from decimal import Decimal
 
 from ..bounties import create_child, rank_bids
 from ..models import Bid, Bounty
+from ..units import KITTY, format_amount
 
 KITTY_UNIT = 10**24
-
-
-def format_kitty(amount: int) -> str:
-    """Return a plain decimal string for ``amount`` kitoshi (never a float)."""
-    if not isinstance(amount, int) or isinstance(amount, bool):
-        raise ValueError("amount must be an int count of the smallest unit")
-    text = (Decimal(amount) / Decimal(KITTY_UNIT)).normalize()
-    return format(text, "f")
 
 
 def parse_kitty(text: str) -> int | None:
@@ -89,7 +82,7 @@ class BountyCard(Adw.Dialog):
         current = self._current_bounty()
         title_widget = Adw.WindowTitle()
         title_widget.set_title(current.title)
-        title_widget.set_subtitle(f"{current.status} · {format_kitty(current.escrow)} KITTY")
+        title_widget.set_subtitle(f"{current.status} · {format_amount(current.escrow, KITTY)} KITTY")
         header.set_title_widget(title_widget)
 
         self.set_title(current.title)
@@ -110,7 +103,7 @@ class BountyCard(Adw.Dialog):
         group = Adw.PreferencesGroup()
         group.set_title("Status")
         row = Adw.ActionRow()
-        row.set_title(f"Escrow: {format_kitty(current.escrow)} KITTY")
+        row.set_title(f"Escrow: {format_amount(current.escrow, KITTY)} KITTY")
         row.set_subtitle(current.status)
         group.add(row)
         self.content.append(group)
@@ -150,7 +143,7 @@ class BountyCard(Adw.Dialog):
         lead_row = Adw.ActionRow()
         lead_row.set_title(ranked[0].bidder)
         lead_row.set_subtitle(
-            f"{format_kitty(ranked[0].price)} KITTY · reputation {ranked[0].reputation}"
+            f"{format_amount(ranked[0].price, KITTY)} KITTY · reputation {ranked[0].reputation}"
         )
         lead.add(lead_row)
         self.content.append(lead)
@@ -160,7 +153,7 @@ class BountyCard(Adw.Dialog):
         for bid in ranked:
             row = Adw.ActionRow()
             row.set_title(bid.bidder)
-            row.set_subtitle(f"{format_kitty(bid.price)} KITTY · reputation {bid.reputation}")
+            row.set_subtitle(f"{format_amount(bid.price, KITTY)} KITTY · reputation {bid.reputation}")
             self.bid_list.append(row)
         queue.add(self.bid_list)
         self.content.append(queue)
@@ -328,4 +321,4 @@ class BountyCard(Adw.Dialog):
         self.error_label.set_visible(bool(message))
 
 
-__all__ = ["BountyCard", "format_kitty", "parse_kitty"]
+__all__ = ["BountyCard", "parse_kitty"]
