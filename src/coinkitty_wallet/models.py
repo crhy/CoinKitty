@@ -29,6 +29,26 @@ class RainGroup:
 
 
 @dataclass
+class Vault:
+    id: str
+    asset: str
+    amount: int
+    created_at: int
+    unlock_at: int
+    released: int = 0
+    step_percent: int = 0
+    step_days: int = 0
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.amount, int) or isinstance(self.amount, bool):
+            raise ValueError("amount must be an int count of the smallest unit")
+        if not 0 <= self.step_percent <= 100:
+            raise ValueError("step_percent must be 0..100")
+        if self.step_percent > 0 and self.step_days < 1:
+            raise ValueError("step_days must be >= 1 when step_percent > 0")
+
+
+@dataclass
 class Transaction:
     id: str
     kind: str

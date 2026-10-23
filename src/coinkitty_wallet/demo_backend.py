@@ -15,8 +15,9 @@ from dataclasses import asdict
 from typing import Callable
 
 from .bech32m import encode_address, is_valid_address
-from .models import Contact, RainGroup, Transaction
+from .models import Contact, RainGroup, Transaction, Vault
 from .rain import split_equal, validate_custom
+from .vaults import unlocked_amount
 
 _DEMO_CONTACTS = ("Babysitter", "Julie", "Rick", "Sam", "Maya")
 _DEMO_FAVORITES = frozenset({"Babysitter", "Julie"})
@@ -43,6 +44,10 @@ class DemoBackend:
         self._rain_groups: list[RainGroup] = []
         self._transactions: list[Transaction] = []  # oldest first
         self._created_at: int | None = None
+        self._vaults: list[Vault] = []
+        self._checked_in: list[str] = []  # local dates the user checked in
+        self._drawn: list[str] = []  # local dates the lottery was drawn
+        self._pool: int = 2 * 10**24  # demo prize pool, KITTY
 
     # ---- construction / persistence -------------------------------------
 
@@ -98,6 +103,10 @@ class DemoBackend:
         if created_at is None:
             created_at = int(os.path.getmtime(path))
         obj._created_at = created_at
+        obj._vaults = [Vault(**row) for row in state.get("vaults", [])]
+        obj._checked_in = list(state.get("checked_in", []))
+        obj._drawn = list(state.get("drawn", []))
+        obj._pool = state.get("pool", 2 * 10**24)
         return obj
 
     def _to_state(self) -> dict:
@@ -108,6 +117,10 @@ class DemoBackend:
             "contacts": [asdict(c) for c in self._contacts],
             "rain_groups": [asdict(g) for g in self._rain_groups],
             "transactions": [asdict(t) for t in self._transactions],
+            "vaults": [asdict(v) for v in self._vaults],
+            "checked_in": list(self._checked_in),
+            "drawn": list(self._drawn),
+            "pool": self._pool,
         }
 
     def _save(self) -> None:
@@ -273,6 +286,118 @@ class DemoBackend:
         if not self._contacts:
             raise ValueError("no contacts to pick")
         return rng.choice(self._contacts)
+
+    # ---- vaults -----------------------------------------------------------
+
+    def create_vault(self, asset: str, amount: int, unlock_at: int,
+                     step_percent: int = 0, step_days: int = 0) -> Vault:
+        """Lock ``amount`` of ``asset`` into a vault; it leaves the balance."""
+        if not _is_money(amount):
+            raise ValueError("amount must be a positive int (bools are not money)")
+        if amount > self.balance(asset):
+            raise ValueError("amount exceeds balance")
+        now = self.clock()
+        if unlock_at <= now:
+            raise ValueError("unlock_at must be in the future")
+        if not isinstance(step_percent, int) or isinstance(step_percent, bool):
+            raise ValueError("step_percent must be an int 0..100")
+        if not 0 <= step_percent <= 100:
+            raise ValueError("step_percent must be 0..100")
+        if step_percent > 0 and (not isinstance(step_days, int) or step_days < 1):
+            raise ValueError("step_days must be an int >= 1 when step_percent > 0")
+        vault = Vault(id=uuid.uuid4().hex, asset=asset, amount=amount,
+                      created_at=now, unlock_at=unlock_at,
+                      step_percent=step_percent, step_days=step_days)
+        self._balances[asset] = self.balance(asset) - amount
+        self._vaults.append(vault)
+        self._save()
+        return vault
+
+    def vaults(self) -> list[Vault]:
+        """All vaults, oldest first."""
+        return list(self._vaults)
+
+    def withdraw_vault(self, vault_id: str, now: int) -> int:
+        """Move unlocked-but-unreleased coins of one vault back to the balance.
+
+        Returns the amount moved (0 is fine). There is no way to withdraw
+        early and no way to delete a vault.
+        """
+        vault = next((v for v in self._vaults if v.id == vault_id), None)
+        if vault is None:
+            raise ValueError(f"no vault with id {vault_id!r}")
+        movable = unlocked_amount(vault, now) - vault.released
+        if movable <= 0:
+            return 0
+        vault.released += movable
+        self._balances[vault.asset] = self.balance(vault.asset) + movable
+        self._save()
+        return movable
+
+    # ---- Launch Window (demo) ----------------------------------------------
+
+    def launch_window(self, now: int) -> tuple[int, int]:
+        """(start, end) of tonight's Launch Window: 21:00-21:15 local time.
+
+        If ``now`` is after tonight's window, returns the next day's window.
+        """
+        start = self._window_start(now)
+        end = start + 15 * 60
+        if now > end:
+            start = self._window_start(now + 86400)
+            end = start + 15 * 60
+        return (start, end)
+
+    def _window_start(self, now: int) -> int:
+        """Unix seconds of the 21:00 local-time start of the day of ``now``."""
+        year, month, day = time.localtime(now)[:3]
+        return int(time.mktime((year, month, day, 21, 0, 0, 0, 0, -1)))
+
+    def check_in(self, now: int) -> bool:
+        """Check in for the lottery: only inside the window, once per night."""
+        start, end = self.launch_window(now)
+        if not start <= now <= end:
+            return False
+        date = time.strftime("%Y-%m-%d", time.localtime(now))
+        if date in self._checked_in:
+            return False
+        self._checked_in.append(date)
+        self._save()
+        return True
+
+    def lottery_pool(self) -> int:
+        """The demo prize pool, in KITTY's smallest unit."""
+        return self._pool
+
+    def checked_in_dates(self) -> list[str]:
+        """Local dates the user has checked in for the lottery."""
+        return list(self._checked_in)
+
+    def run_demo_draw(self, date: str, rng) -> bool:
+        """Draw the nightly lottery for ``date``; True if the user won.
+
+        Only draws if the user checked in that date and it was not drawn yet.
+        A win pays 10% of the pool into the KITTY balance as a receive
+        transaction from "Launch Window lottery".
+        """
+        if date not in self._checked_in or date in self._drawn:
+            return False
+        self._drawn.append(date)
+        won = rng.randrange(20) == 0
+        if won:
+            prize = self._pool * 10 // 100
+            self._balances["KITTY"] = self.balance("KITTY") + prize
+            self._transactions.append(Transaction(
+                id=uuid.uuid4().hex,
+                kind="receive",
+                asset="KITTY",
+                amount=prize,
+                counterparty="Launch Window lottery",
+                memo="",
+                timestamp=self.clock(),
+            ))
+        self._save()
+        return won
 
     # ---- helpers ---------------------------------------------------------
 

@@ -96,6 +96,23 @@ class PageVisibilityTest(unittest.TestCase):
         self.assert_on_screen(window, home.sun_button)
         self.assert_on_screen(window, home.launch_button)
 
+    def test_vault(self):
+        window = WalletWindow(None, self.backend)
+        self.backend.create_vault("KITTY", 1000, 4_000_000_000)
+        window.show_page("vault")
+        self.present(window)
+        vault = window._pages["vault"]
+        self.assert_on_screen(window, vault.vault_list)
+        self.assert_on_screen(window, vault.lock_button)
+
+    def test_launch_window(self):
+        window = WalletWindow(None, self.backend)
+        window.show_page("launch-window")
+        self.present(window)
+        launch = window._pages["launch-window"]
+        self.assert_on_screen(window, launch.countdown_label)
+        self.assert_on_screen(window, launch.check_in_button)
+
 
 if __name__ == "__main__":
     unittest.main()

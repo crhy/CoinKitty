@@ -18,6 +18,8 @@ from ..ui.wallet_page import WalletPage
 from ..ui.send_page import SendPage
 from ..ui.rain_page import RainPage
 from ..ui.contacts_page import ContactsPage
+from ..ui.vault_page import VaultPage
+from ..ui.launch_window_page import LaunchWindowPage
 from ..ui.style import install_css
 
 BANNER_TEXT = "Demo coins: KittyChain is not live yet. Nothing here is real money."
@@ -59,6 +61,10 @@ class WalletWindow(Adw.ApplicationWindow):
                     on_changed=self.refresh_favorites,
                     on_pay=lambda cid: self._pages["send"].start_with_contact(cid),
                 )
+            elif page_id == "vault":
+                page = VaultPage(backend)
+            elif page_id == "launch-window":
+                page = LaunchWindowPage(backend)
             else:
                 status = Adw.StatusPage()
                 status.set_icon_name(icon)
