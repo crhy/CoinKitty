@@ -6,7 +6,7 @@ import unittest
 
 from coinkitty_wallet.demo_backend import DemoBackend
 from coinkitty_wallet.models import Vault
-from coinkitty_wallet.vaults import next_unlock, unlocked_amount
+from coinkitty_wallet.vaults import next_unlock, planned_steps, unlocked_amount
 
 DAY = 86400
 
@@ -62,6 +62,49 @@ class VaultMathTest(unittest.TestCase):
         for step in range(10):
             total = unlocked_amount(v, unlock + step * 30 * DAY)
         self.assertEqual(total, 1000)
+
+    def test_three_kitoshis_fully_unlock_on_last_step(self):
+        unlock = 1000
+        v = Vault(id="tiny", asset="KITTY", amount=3, created_at=0,
+                  unlock_at=unlock, step_percent=25, step_days=30)
+        self.assertEqual(unlocked_amount(v, unlock), 0)
+        self.assertEqual(unlocked_amount(v, unlock + 30 * DAY), 1)
+        self.assertEqual(unlocked_amount(v, unlock + 60 * DAY), 2)
+        self.assertEqual(unlocked_amount(v, unlock + 90 * DAY), 3)
+        self.assertEqual(unlocked_amount(v, unlock + 999 * DAY), 3)
+        self.assertIsNone(next_unlock(v, unlock + 90 * DAY))
+
+    def test_kitty_plus_three_fully_unlock_on_last_step(self):
+        unlock = 1000
+        amount = 10 ** 24 + 3
+        v = Vault(id="tiny-remainder", asset="KITTY", amount=amount, created_at=0,
+                  unlock_at=unlock, step_percent=25, step_days=30)
+        self.assertLess(unlocked_amount(v, unlock + 60 * DAY), amount)
+        self.assertEqual(unlocked_amount(v, unlock + 90 * DAY), amount)
+        self.assertEqual(unlocked_amount(v, unlock + 999 * DAY), amount)
+        self.assertIsNone(next_unlock(v, unlock + 90 * DAY))
+
+    def test_planned_steps_release_all_by_last_step(self):
+        unlock = 1000
+        for percent in (10, 25, 33, 50, 100):
+            for amount in (1, 2, 3, 7, 10 ** 24, 10 ** 24 + 7):
+                v = Vault(id="x", asset="KITTY", amount=amount, created_at=0,
+                          unlock_at=unlock, step_percent=percent, step_days=30)
+                planned = planned_steps(v)
+                previous = 0
+                for step in range(1, planned + 1):
+                    now = unlock + (step - 1) * 30 * DAY
+                    current = unlocked_amount(v, now)
+                    self.assertLessEqual(previous, current)
+                    self.assertLessEqual(current, amount)
+                    if step == planned:
+                        self.assertEqual(current, amount)
+                    else:
+                        self.assertLess(current, amount)
+                    previous = current
+                for step in range(planned, planned + 3):
+                    now = unlock + (step - 1) * 30 * DAY
+                    self.assertIsNone(next_unlock(v, now))
 
 
 class BackendVaultTest(unittest.TestCase):
