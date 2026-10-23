@@ -1,5 +1,7 @@
 import unittest
 
+import random
+
 from coinkitty_wallet.models import Bid, Bounty
 from coinkitty_wallet.bounties import accept, auto_release_due, cancel, create_child, deliver, fund, rank_bids, release
 
@@ -159,6 +161,50 @@ class SubBountyTests(unittest.TestCase):
             create_child(parent, "child", True, 10)
         with self.assertRaises(ValueError):
             create_child(parent, "child", 101, 10)
+
+
+class SplitReleaseTests(unittest.TestCase):
+    def test_release_after_split_from_assigned(self) -> None:
+        bid = make_bid("bid1", "b1", 90)
+        parent = make_bounty(status="assigned", price=100, escrow=100, bids=[bid], accepted_bid_id="bid1")
+        child = create_child(parent, "child", 50, 10)
+        deliver(parent, 20)
+        paid, refunded = release(parent)
+        self.assertEqual((paid, refunded), (50, 0))
+        self.assertEqual(child.escrow, 50)
+
+    def test_release_split_within_surplus(self) -> None:
+        bid = make_bid("bid1", "b1", 90)
+        parent = make_bounty(status="assigned", price=100, escrow=100, bids=[bid], accepted_bid_id="bid1")
+        child = create_child(parent, "child", 5, 10)
+        deliver(parent, 20)
+        paid, refunded = release(parent)
+        self.assertEqual((paid, refunded), (90, 5))
+        self.assertEqual(child.escrow, 5)
+
+    def test_release_without_children(self) -> None:
+        bid = make_bid("bid1", "b1", 90)
+        parent = make_bounty(status="assigned", price=100, escrow=100, bids=[bid], accepted_bid_id="bid1")
+        deliver(parent, 20)
+        paid, refunded = release(parent)
+        self.assertEqual((paid, refunded), (90, 10))
+
+    def test_random_scenarios_conserve_money(self) -> None:
+        rng = random.Random(20261022)
+        for _ in range(60):
+            price = rng.randint(1, 1000)
+            bid_price = rng.randint(1, price)
+            bounty = make_bounty(status="open", price=price, bids=[make_bid("bid1", "b1", bid_price)])
+            fund(bounty, price)
+            accept(bounty, "bid1")
+            children = []
+            while bounty.escrow > 0 and rng.random() < 0.5:
+                now = rng.uniform(0.0, 1000.0)
+                child_price = rng.randint(1, bounty.escrow)
+                children.append(create_child(bounty, "child", child_price, now))
+            deliver(bounty, rng.uniform(0.0, 1000.0))
+            paid, refunded = release(bounty)
+            self.assertEqual(paid + refunded + sum(c.escrow for c in children), price)
 
 
 class AutoReleaseTests(unittest.TestCase):

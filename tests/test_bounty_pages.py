@@ -52,7 +52,15 @@ class BountyPagesTest(unittest.TestCase):
         self.present()
         earn = self.window._pages["earn"]
         rows = self._rows(earn.bounty_list)
-        self.assertEqual(len(rows), 5)
+        self.assertEqual(len(rows), 8)
+
+    def test_earn_lists_funded_bounties(self):
+        self.window.show_page("earn")
+        self.present()
+        earn = self.window._pages["earn"]
+        titles = {row.get_title() for row in self._rows(earn.bounty_list)}
+        self.assertIn("Build a shed", titles)
+        self.assertIn("Dig the foundation", titles)
 
     def test_earn_search_filters(self):
         self.window.show_page("earn")

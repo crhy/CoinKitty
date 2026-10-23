@@ -54,17 +54,21 @@ def deliver(b: Bounty, now: int | float) -> None:
 
 
 def release(b: Bounty) -> tuple[int, int]:
-    """Release a delivered bounty and return ``(paid_to_hunter, refunded_to_poster)``."""
+    """Release a delivered bounty and return ``(paid_to_hunter, refunded_to_poster)``.
+
+    Sub-bounties split from an assigned bounty are paid first from the poster's
+    surplus (escrow minus bid) and then from the hunter's pay, because the hunter
+    is subcontracting. So the escrow may be smaller than the accepted bid price:
+    ``paid_to_hunter = min(bid.price, b.escrow)`` and the rest is refunded.
+    """
     if b.status != "delivered":
         raise ValueError("only a delivered bounty can be released")
 
     bid = _find_bid(b, b.accepted_bid_id)
     if bid is None:
         raise ValueError("a released bounty must have an accepted bid")
-    if bid.price > b.escrow:
-        raise ValueError("the escrow must cover the accepted bid price")
 
-    paid_to_hunter = bid.price
+    paid_to_hunter = min(bid.price, b.escrow)
     refunded_to_poster = b.escrow - paid_to_hunter
     b.escrow = 0
     b.status = "released"

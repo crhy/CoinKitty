@@ -28,8 +28,22 @@ def _window_text(bounty: Bounty) -> str:
     return f"{start} -> {end}"
 
 
+def _subtitle_text(bounty: Bounty, titles: dict[str, str]) -> str:
+    """Return the row subtitle: price, location, window, status and parent note."""
+    parts = [
+        f"{format_amount(bounty.price, KITTY)} KITTY",
+        bounty.location,
+        _window_text(bounty),
+    ]
+    if bounty.status == "funded":
+        parts.append("Funded")
+    if bounty.parent_id is not None and bounty.parent_id in titles:
+        parts.append(f"Part of {titles[bounty.parent_id]}")
+    return " · ".join(parts)
+
+
 class EarnPage(Gtk.Box):
-    """Searchable list of open bounties posted by others."""
+    """Searchable list of open or funded bounties posted by others."""
 
     def __init__(self, backend, on_open_bounty):
         super().__init__()
@@ -107,7 +121,7 @@ class EarnPage(Gtk.Box):
         self._refresh()
 
     def _refresh(self) -> None:
-        """Repopulate the list from open bounties matching search + category."""
+        """Repopulate the list from open or funded bounties matching search + category."""
         self._row_bounty: dict[Adw.ActionRow, str] = {}
         self._bid_buttons = {}
         child = self.bounty_list.get_first_child()
@@ -119,8 +133,10 @@ class EarnPage(Gtk.Box):
         query = self.search_entry.get_text().strip().lower()
         category = self.dropdown.get_selected_item().get_string()
         own = self.backend.address()
-        for bounty in self.backend.bounties():
-            if bounty.status != "open" or bounty.poster == own:
+        all_bounties = self.backend.bounties()
+        titles = {bounty.id: bounty.title for bounty in all_bounties}
+        for bounty in all_bounties:
+            if bounty.status not in ("open", "funded") or bounty.poster == own:
                 continue
             if category != "All" and bounty.category.lower() != category.lower():
                 continue
@@ -132,10 +148,7 @@ class EarnPage(Gtk.Box):
                     continue
             row = Adw.ActionRow()
             row.set_title(bounty.title)
-            row.set_subtitle(
-                f"{format_amount(bounty.price, KITTY)} KITTY · {bounty.location} "
-                f"· {_window_text(bounty)}"
-            )
+            row.set_subtitle(_subtitle_text(bounty, titles))
             row.set_activatable(True)
             bid_button = Gtk.Button(label="Bid")
             bid_button.add_css_class("pill")
