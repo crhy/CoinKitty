@@ -13,6 +13,19 @@ from coinkitty_wallet.demo_backend import DemoBackend
 from coinkitty_wallet.demo_prices import value_in_sats, portfolio_shares, percent_shares
 from coinkitty_wallet.ui.home_page import HomePage
 from coinkitty_wallet.ui.wallet_page import WalletPage
+from coinkitty_wallet.ui.window import WalletWindow
+
+
+def is_inside(widget, ancestor) -> bool:
+    """True if ``widget`` is a descendant of ``ancestor`` (walk up, bounded)."""
+    steps = 0
+    current = widget.get_parent()
+    while current is not None and steps < 100:
+        if current is ancestor:
+            return True
+        current = current.get_parent()
+        steps += 1
+    return False
 
 
 class HomeWalletTest(unittest.TestCase):
@@ -76,6 +89,47 @@ class HomeWalletTest(unittest.TestCase):
     def test_copy_button(self):
         self.wallet.copy_button.emit("clicked")
         self.assertEqual(self.wallet.copy_button.get_label(), "Copied")
+
+    def test_widgets_inside(self):
+        self.assertTrue(is_inside(self.wallet.asset_list, self.wallet))
+        self.assertTrue(is_inside(self.wallet.donut, self.wallet))
+        self.assertTrue(is_inside(self.wallet.address_label, self.wallet))
+        self.assertTrue(is_inside(self.wallet.copy_button, self.wallet))
+        self.assertTrue(is_inside(self.home.sun_button, self.home))
+        self.assertTrue(is_inside(self.home.earth_button, self.home))
+        self.assertTrue(is_inside(self.home.moon_button, self.home))
+
+    def test_fresh_wallet(self):
+        self.assertEqual(self.wallet.selected_asset(), "KITTY")
+        self.assertIn("KITTY", self.wallet._receive_heading.get_label())
+        self.assertTrue(self.wallet.address_label.get_label().startswith("kitty1"))
+        self.assertTrue(self.wallet.copy_button.get_visible())
+
+    def test_btc_hides_copy(self):
+        btc_row = next(row for row in self._asset_rows() if row.get_subtitle() == "BTC")
+        self.wallet.asset_list.select_row(btc_row)
+        self.assertFalse(self.wallet.copy_button.get_visible())
+        self.assertIn("BTC", self.wallet._receive_heading.get_label())
+
+    def test_sun_text(self):
+        sun = self.home.sun_value_label.get_label()
+        self.assertIn("KITTY", sun)
+        self.assertIn("0.0015", sun)
+
+    def test_orb_geometry(self):
+        window = WalletWindow(None, self.backend)
+        window.present()
+        ctx = GLib.MainContext.default()
+        for _ in range(50):
+            n = 0
+            while ctx.iteration(False):
+                n += 1
+                if n >= 1000:
+                    break
+        home = window._pages["home"]
+        for orb in (home.sun_button, home.earth_button, home.moon_button):
+            self.assertEqual(orb.get_width(), orb.get_height())
+        self.assertLess(home.launch_button.get_width(), 400)
 
 
 class DemoPricesTest(unittest.TestCase):

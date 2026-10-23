@@ -16,23 +16,37 @@ from ..demo_prices import portfolio_shares, percent_shares
 
 import math
 
-# Donut colours: KITTY gold, BTC orange (as cairo rgba fractions).
-COLORS = {"KITTY": (0.96, 0.77, 0.26), "BTC": (0.97, 0.58, 0.1)}
+# Donut colours: KITTY gold, BTC blue (cairo rgba fractions). The two hues are
+# far apart so colour-blind users can still tell the segments apart.
+COLORS = {"KITTY": (0.96, 0.77, 0.26), "BTC": (0.25, 0.47, 0.85)}
 DEFAULT_COLOR = (0.5, 0.5, 0.5)
 
 
 class WalletPage(Gtk.Box):
-    """Vertical box: asset list, donut + legend, and the receive box."""
+    """Outer box holding a ScrolledWindow; the ScrolledWindow holds the page box."""
 
     def __init__(self, backend):
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        super().__init__()
         self._backend = backend
         self._row_asset: dict[Adw.ActionRow, str] = {}
         self._row_check: dict[Adw.ActionRow, Gtk.Image] = {}
 
+        # ---- scrolled page box (never overflows) --------------------------
+        self._scrolled = Gtk.ScrolledWindow()
+        self._scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self._page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        self._page.set_margin_top(24)
+        self._page.set_margin_bottom(24)
+        self._page.set_margin_start(24)
+        self._page.set_margin_end(24)
+        self._scrolled.set_child(self._page)
+        self.append(self._scrolled)
+
         # ---- asset list (single selection) --------------------------------
         self.asset_list = Gtk.ListBox()
         self.asset_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self.asset_list.add_css_class("boxed-list")
+        kitty_row = None
         for code, asset in ASSETS.items():
             row = Adw.ActionRow()
             row.set_title(asset.name)
@@ -48,8 +62,11 @@ class WalletPage(Gtk.Box):
             self.asset_list.append(row)
             self._row_asset[row] = code
             self._row_check[row] = check
-        self._refresh_checks()
-        self.asset_list.connect("row-activated", self._on_row_activated)
+            if code == "KITTY":
+                kitty_row = row
+        frame = Gtk.Frame()
+        frame.set_child(self.asset_list)
+        self._page.append(frame)
 
         # ---- donut chart --------------------------------------------------
         self.donut = Gtk.DrawingArea()
@@ -63,27 +80,34 @@ class WalletPage(Gtk.Box):
         self.legend_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self._build_legend()
         chart_row.append(self.legend_box)
-        self.append(chart_row)
+        self._page.append(chart_row)
 
         # ---- receive box --------------------------------------------------
         self._receive_heading = Gtk.Label(label=self._heading_text())
-        self.append(self._receive_heading)
+        self._page.append(self._receive_heading)
         self.address_label = Gtk.Label(label=self._address_text())
         self.address_label.add_css_class("monospace")
         self.address_label.set_selectable(True)
-        self.append(self.address_label)
+        self._page.append(self.address_label)
         self.copy_button = Gtk.Button(label="Copy")
+        self.copy_button.add_css_class("pill")
+        self.copy_button.set_halign(Gtk.Align.CENTER)
         self.copy_button.connect("clicked", self._on_copy_clicked)
-        self.append(self.copy_button)
-        self.append(Gtk.Label(label="QR code: coming soon"))
+        self._page.append(self.copy_button)
+        self._page.append(Gtk.Label(label="QR code: coming soon"))
+
+        # ---- selection wiring (click + keyboard) --------------------------
+        self.asset_list.connect("row-selected", self._on_row_changed)
+        self.asset_list.connect("row-activated", self._on_row_changed)
+        self._refresh_receive_box()
 
     # ---- selection --------------------------------------------------------
 
     def selected_asset(self) -> str:
-        """Return the asset code of the currently selected row ("" if none)."""
+        """Return the asset code of the selected row, defaulting to KITTY."""
         row = self.asset_list.get_selected_row()
         if row is None:
-            return ""
+            return "KITTY"
         return self._row_asset[row]
 
     def _refresh_checks(self) -> None:
@@ -91,14 +115,15 @@ class WalletPage(Gtk.Box):
         for row, check in self._row_check.items():
             check.set_visible(row is selected)
 
-    def _on_row_activated(self, list_box, row, user_initiated) -> None:
-        """Selection changed: update the check icons and the receive box."""
+    def _on_row_changed(self, row, user_initiated) -> None:
+        """Selection changed (click or keyboard): refresh checks and receive box."""
         self._refresh_checks()
         self._refresh_receive_box()
 
     def _refresh_receive_box(self) -> None:
         self._receive_heading.set_label(self._heading_text())
         self.address_label.set_label(self._address_text())
+        self.copy_button.set_visible(self.selected_asset() == "KITTY")
 
     # ---- receive box text -------------------------------------------------
 
@@ -149,7 +174,26 @@ class WalletPage(Gtk.Box):
         shares = portfolio_shares(self._balances())
         for code, percent in percent_shares(shares):
             name = ASSETS[code].name
-            self.legend_box.append(Gtk.Label(label=f"{name} {percent}%"))
+            entry = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            entry.append(self._legend_swatch(code))
+            entry.append(Gtk.Label(label=f"{name} {percent}%"))
+            self.legend_box.append(entry)
+
+    def _legend_swatch(self, code: str) -> Gtk.DrawingArea:
+        """A 12x12 square filled with the asset's donut colour."""
+        color = COLORS.get(code, DEFAULT_COLOR)
+        square = Gtk.DrawingArea()
+        square.set_content_width(12)
+        square.set_content_height(12)
+        square.set_draw_func(self._make_legend_draw(color))
+        return square
+
+    def _make_legend_draw(self, color):
+        def draw(area, cr, width, height) -> None:
+            cr.set_source_rgb(*color)
+            cr.paint()
+
+        return draw
 
     # ---- helpers ----------------------------------------------------------
 

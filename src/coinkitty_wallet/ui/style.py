@@ -15,8 +15,9 @@ from gi.repository import Gdk, Gtk
 CSS_TEXT = """
 .ck-orb {
   border-radius: 9999px;
-  min-width: 150px;
-  min-height: 150px;
+  min-width: 160px;
+  min-height: 160px;
+  padding: 0;
 }
 .ck-sun {
   background-color: #f5c442;
