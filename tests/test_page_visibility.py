@@ -123,6 +123,14 @@ class PageVisibilityTest(unittest.TestCase):
         self.assert_on_screen(window, launch.countdown_label)
         self.assert_on_screen(window, launch.check_in_button)
 
+    def test_swap(self):
+        window = WalletWindow(None, self.backend)
+        window.show_page("swap")
+        self.present(window)
+        swap = window._pages["swap"]
+        self.assert_on_screen(window, swap.amount_entry)
+        self.assert_on_screen(window, swap.swap_button)
+
 
 if __name__ == "__main__":
     unittest.main()

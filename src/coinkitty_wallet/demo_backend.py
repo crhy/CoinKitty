@@ -287,6 +287,45 @@ class DemoBackend:
             raise ValueError("no contacts to pick")
         return rng.choice(self._contacts)
 
+    def apply_swap(self, sell_asset: str, amount: int, buy_asset: str,
+                   receive: int) -> tuple[Transaction, Transaction]:
+        """Apply a completed simulated swap: all-or-nothing balance move.
+
+        Reduces ``sell_asset`` by ``amount`` and increases ``buy_asset`` by
+        ``receive``, recording a "swap out" (kind ``send``) and a "swap in"
+        (kind ``receive``) transaction, both with counterparty "Simulated swap".
+        Raises ``ValueError`` if either amount is not a positive int (bools are
+        not money) or the sell amount exceeds the balance. Nothing moves unless
+        both sides validate, so the move is all-or-nothing.
+        """
+        if not _is_money(amount) or not _is_money(receive):
+            raise ValueError("amount and receive must be positive ints (bools are not money)")
+        if amount > self.balance(sell_asset):
+            raise ValueError("amount exceeds balance")
+        self._balances[sell_asset] = self.balance(sell_asset) - amount
+        self._balances[buy_asset] = self.balance(buy_asset) + receive
+        out = Transaction(
+            id=uuid.uuid4().hex,
+            kind="send",
+            asset=sell_asset,
+            amount=amount,
+            counterparty="Simulated swap",
+            memo="swap out",
+            timestamp=self.clock(),
+        )
+        in_txn = Transaction(
+            id=uuid.uuid4().hex,
+            kind="receive",
+            asset=buy_asset,
+            amount=receive,
+            counterparty="Simulated swap",
+            memo="swap in",
+            timestamp=self.clock(),
+        )
+        self._transactions.extend((out, in_txn))
+        self._save()
+        return (out, in_txn)
+
     # ---- vaults -----------------------------------------------------------
 
     def create_vault(self, asset: str, amount: int, unlock_at: int,

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import gi
 
+import random
+
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gtk
@@ -20,6 +22,7 @@ from ..ui.rain_page import RainPage
 from ..ui.contacts_page import ContactsPage
 from ..ui.vault_page import VaultPage
 from ..ui.launch_window_page import LaunchWindowPage
+from ..ui.swap_page import SwapPage
 from ..ui.style import install_css
 
 BANNER_TEXT = "Demo coins: KittyChain is not live yet. Nothing here is real money."
@@ -65,6 +68,8 @@ class WalletWindow(Adw.ApplicationWindow):
                 page = VaultPage(backend)
             elif page_id == "launch-window":
                 page = LaunchWindowPage(backend)
+            elif page_id == "swap":
+                page = SwapPage(backend, rng=random.Random(7))
             else:
                 status = Adw.StatusPage()
                 status.set_icon_name(icon)

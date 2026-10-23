@@ -64,14 +64,25 @@ class AppLaunchTest(unittest.TestCase):
                     appeared = True
                     break
                 time.sleep(0.25)
+            if proc.poll() is not None:
+                self.fail(
+                    f"app exited early (rc={proc.returncode}); "
+                    f"stderr={proc.stderr.read().decode()[-2000:]}"
+                )
             self.assertTrue(appeared)
             self.assertIsNone(proc.poll())
         finally:
             try:
-                os.killpg(proc.pid, signal.SIGTERM)
+                try:
+                    os.killpg(proc.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                os.killpg(proc.pid, signal.SIGKILL)
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
                 proc.wait(timeout=10)
             if proc.stderr:
                 proc.stderr.close()
