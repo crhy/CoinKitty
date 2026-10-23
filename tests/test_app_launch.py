@@ -14,10 +14,12 @@ import sys
 import tempfile
 import time
 import unittest
+import xml.etree.ElementTree
 
 SRC_DIR = os.path.abspath(
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
 )
+BUS_CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "isolated-bus.conf")
 
 
 class AppImportTest(unittest.TestCase):
@@ -38,6 +40,12 @@ class AppImportTest(unittest.TestCase):
 
 
 class AppLaunchTest(unittest.TestCase):
+    def test_bus_conf_has_no_servicedirs(self):
+        """The isolated bus config declares no service dirs, so nothing auto-starts on it."""
+        tree = xml.etree.ElementTree.parse(BUS_CONF)
+        for element in tree.iter():
+            self.assertNotIn(element.tag, ("servicedir", "standard_session_servicedirs"))
+
     def test_launch_creates_wallet_file(self):
         """The app starts on a private bus, keeps running, and writes its demo file."""
         if shutil.which("dbus-run-session") is None or shutil.which("xvfb-run") is None:
@@ -47,7 +55,17 @@ class AppLaunchTest(unittest.TestCase):
         env = dict(os.environ)
         env["PYTHONPATH"] = SRC_DIR
         env["XDG_DATA_HOME"] = tmp
-        cmd = ["dbus-run-session", "--", "xvfb-run", "-a", sys.executable, "-m", "coinkitty_wallet"]
+        cmd = [
+            "dbus-run-session",
+            "--config-file",
+            BUS_CONF,
+            "--",
+            "xvfb-run",
+            "-a",
+            sys.executable,
+            "-m",
+            "coinkitty_wallet",
+        ]
         proc = subprocess.Popen(
             cmd,
             env=env,
