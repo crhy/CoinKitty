@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=CoinKitty Wallet
+Comment=Demo wallet for the CoinKitty bounty economy
+Exec=coinkitty-wallet
+Icon=io.github.crhy.CoinKittyWallet
+Terminal=false
+Type=Application
+Categories=Office;Finance;
+StartupNotify=true
