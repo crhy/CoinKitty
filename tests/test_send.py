@@ -11,7 +11,10 @@ import unittest
 
 from coinkitty_wallet.demo_backend import DemoBackend
 from coinkitty_wallet.ui.send_page import SendPage
+from coinkitty_wallet.ui.window import WalletWindow
 from coinkitty_wallet.units import ASSETS, format_amount
+
+from tests.helpers import is_inside, find_all
 
 
 class SendTest(unittest.TestCase):
@@ -96,6 +99,61 @@ class SendTest(unittest.TestCase):
         self.page.send_button.emit("clicked")
         self.assertIn("atomic swaps", self.page.error_label.get_label())
         self.assertEqual(self.backend.balance("BTC"), 150_000)
+
+
+class SendLayoutTest(unittest.TestCase):
+    def setUpClass():
+        if not Gtk.init_check():
+            raise unittest.SkipTest("GTK init unavailable")
+        Adw.init()
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp(prefix="coinkitty-send-layout-")
+        self.backend = DemoBackend.create(self.tmpdir + "/demo-wallet.json",
+                                          random.Random(0))
+        self.page = SendPage(self.backend, random.Random(1),
+                             on_open_page=lambda pid: None)
+        ctx = GLib.MainContext.default()
+        for _ in range(50):
+            n = 0
+            while ctx.iteration(False):
+                n += 1
+                if n >= 1000:
+                    break
+
+    def tearDown(self):
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_has_clamp(self):
+        self.assertGreaterEqual(len(find_all(self.page, Adw.Clamp)), 1)
+
+    def test_entries_labeled(self):
+        rows = find_all(self.page, Adw.EntryRow)
+        for entry in find_all(self.page, Gtk.Entry):
+            if isinstance(entry, Adw.EntryRow):
+                continue
+            placeholder = entry.get_placeholder_text()
+            has_placeholder = placeholder is not None and placeholder != ""
+            inside_row = any(is_inside(entry, row) for row in rows)
+            self.assertTrue(has_placeholder or inside_row)
+
+    def test_send_button_suggested(self):
+        for button in find_all(self.page, Gtk.Button):
+            if button.get_label() == "Send":
+                self.assertIn("suggested-action", button.get_css_classes())
+
+    def test_send_button_narrow(self):
+        window = WalletWindow(None, self.backend)
+        window.show_page("send")
+        window.present()
+        ctx = GLib.MainContext.default()
+        for _ in range(50):
+            n = 0
+            while ctx.iteration(False):
+                n += 1
+                if n >= 1000:
+                    break
+        self.assertLess(self.page.send_button.get_width(), 300)
 
 
 if __name__ == "__main__":

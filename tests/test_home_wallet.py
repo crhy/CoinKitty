@@ -15,6 +15,8 @@ from coinkitty_wallet.ui.home_page import HomePage
 from coinkitty_wallet.ui.wallet_page import WalletPage
 from coinkitty_wallet.ui.window import WalletWindow
 
+from tests.helpers import find_all
+
 
 def is_inside(widget, ancestor) -> bool:
     """True if ``widget`` is a descendant of ``ancestor`` (walk up, bounded)."""
@@ -130,6 +132,26 @@ class HomeWalletTest(unittest.TestCase):
         for orb in (home.sun_button, home.earth_button, home.moon_button):
             self.assertEqual(orb.get_width(), orb.get_height())
         self.assertLess(home.launch_button.get_width(), 400)
+
+    def test_badge_circles(self):
+        window = WalletWindow(None, self.backend)
+        window.show_page("wallet")
+        window.present()
+        ctx = GLib.MainContext.default()
+        for _ in range(50):
+            n = 0
+            while ctx.iteration(False):
+                n += 1
+                if n >= 1000:
+                    break
+        wallet = window._pages["wallet"]
+        badges = [
+            w for w in find_all(wallet, Gtk.Label)
+            if "ck-badge" in w.get_css_classes()
+        ]
+        self.assertGreaterEqual(len(badges), 2)
+        for badge in badges:
+            self.assertEqual(badge.get_width(), badge.get_height())
 
 
 class DemoPricesTest(unittest.TestCase):

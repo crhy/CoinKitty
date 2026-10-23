@@ -15,6 +15,8 @@ from coinkitty_wallet.rain import rain_recipients
 from coinkitty_wallet.ui.window import WalletWindow
 from coinkitty_wallet.ui.contacts_page import shorten_address
 
+from tests.helpers import is_inside, find_all
+
 
 class RainRecipientsTest(unittest.TestCase):
     def test_union_first_seen_order(self):
@@ -207,6 +209,66 @@ class RainContactsTest(unittest.TestCase):
         band = self._group_by_name()["Band"]
         self.assertNotIn(ids["Rick"], band.member_ids)
         self.assertEqual(len(band.member_ids), 2)
+
+
+class RainContactsLayoutTest(unittest.TestCase):
+    def setUpClass():
+        if not Gtk.init_check():
+            raise unittest.SkipTest("GTK init unavailable")
+        Adw.init()
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp(prefix="coinkitty-rain-layout-")
+        self.backend = DemoBackend.create(
+            self.tmpdir + "/demo-wallet.json", random.Random(0)
+        )
+        self.window = WalletWindow(None, self.backend)
+        ctx = GLib.MainContext.default()
+        for _ in range(50):
+            n = 0
+            while ctx.iteration(False):
+                n += 1
+                if n >= 1000:
+                    break
+
+    def tearDown(self):
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def _entries_labeled(self, root):
+        rows = find_all(root, Adw.EntryRow)
+        for entry in find_all(root, Gtk.Entry):
+            if isinstance(entry, Adw.EntryRow):
+                continue
+            placeholder = entry.get_placeholder_text()
+            has_placeholder = placeholder is not None and placeholder != ""
+            inside_row = any(is_inside(entry, row) for row in rows)
+            self.assertTrue(has_placeholder or inside_row)
+
+    def test_rain_has_clamp(self):
+        rain = self.window._pages["rain"]
+        self.assertGreaterEqual(len(find_all(rain, Adw.Clamp)), 1)
+
+    def test_rain_entries_labeled(self):
+        self._entries_labeled(self.window._pages["rain"])
+
+    def test_rain_button_suggested(self):
+        rain = self.window._pages["rain"]
+        for button in find_all(rain, Gtk.Button):
+            if button.get_label() == "Rain":
+                self.assertIn("suggested-action", button.get_css_classes())
+
+    def test_contacts_has_clamp(self):
+        contacts = self.window._pages["contacts"]
+        self.assertGreaterEqual(len(find_all(contacts, Adw.Clamp)), 1)
+
+    def test_contacts_entries_labeled(self):
+        self._entries_labeled(self.window._pages["contacts"])
+
+    def test_group_editor_entries_labeled(self):
+        rain = self.window._pages["rain"]
+        rain._open_editor(None)
+        editor = rain._active_editor
+        self._entries_labeled(editor)
 
 
 if __name__ == "__main__":

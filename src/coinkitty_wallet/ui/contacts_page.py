@@ -39,40 +39,46 @@ class ContactDialog(Adw.Dialog):
 
         self.content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
 
-        self.name_entry = Gtk.Entry()
-        self.name_entry.set_text(contact.name)
-        self.content.append(self.name_entry)
-
+        details_group = Adw.PreferencesGroup()
+        details_group.set_title("Details")
+        self.name_entry = Adw.EntryRow()
+        self.name_entry.set_title(contact.name)
+        details_group.add(self.name_entry)
         self.address_label = Gtk.Label(label=contact.address)
         self.address_label.set_selectable(True)
         self.address_label.add_css_class("monospace")
-        self.content.append(self.address_label)
-
+        details_group.add(self.address_label)
+        asset_row = Adw.ActionRow()
+        asset_row.set_title("Preferred asset")
         model = Gtk.StringList.new(["KITTY", "BTC"])
         self.asset_dropdown = Gtk.DropDown(model=model)
-        self.asset_dropdown.set_selected(0 if contact.preferred_asset == "KITTY" else 1)
-        self.content.append(self.asset_dropdown)
-
+        self.asset_dropdown.set_selected(
+            0 if contact.preferred_asset == "KITTY" else 1)
+        asset_row.add_suffix(self.asset_dropdown)
+        details_group.add(asset_row)
         self.group_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         for group in backend.rain_groups():
             if contact.id in group.member_ids:
                 self.group_box.append(Gtk.Label(label=group.name))
-        self.content.append(self.group_box)
-
+        details_group.add(self.group_box)
         self.favorite_switch = Gtk.Switch()
         self.favorite_switch.set_active(bool(contact.favorite))
-        self.content.append(self.favorite_switch)
+        details_group.add(self.favorite_switch)
+        self.content.append(details_group)
 
+        button_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        button_row.set_halign(Gtk.Align.CENTER)
         self.pay_button = Gtk.Button(label="Pay")
         self.pay_button.connect("clicked", self._on_pay_clicked)
-        self.content.append(self.pay_button)
-
+        button_row.append(self.pay_button)
         self.save_button = Gtk.Button(label="Save")
         self.save_button.connect("clicked", self._on_save_clicked)
-        self.content.append(self.save_button)
+        button_row.append(self.save_button)
+        self.content.append(button_row)
 
         self.delete_button = Gtk.Button(label="Delete")
         self.delete_button.add_css_class("destructive-action")
+        self.delete_button.set_halign(Gtk.Align.CENTER)
         self.delete_button.connect("clicked", self._on_delete_clicked)
         self.content.append(self.delete_button)
 
@@ -139,16 +145,21 @@ class AddContactDialog(Adw.Dialog):
 
         self.content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
 
+        details_group = Adw.PreferencesGroup()
+        details_group.set_title("New contact")
         self.name_entry = Gtk.Entry()
+        self.name_entry.set_placeholder_text("Name")
         self.name_entry.connect("changed", self._on_changed)
-        self.content.append(self.name_entry)
-
+        details_group.add(self.name_entry)
         self.address_entry = Gtk.Entry()
+        self.address_entry.set_placeholder_text("kitty1… address")
         self.address_entry.connect("changed", self._on_changed)
-        self.content.append(self.address_entry)
+        details_group.add(self.address_entry)
+        self.content.append(details_group)
 
         self.save_button = Gtk.Button(label="Save")
         self.save_button.add_css_class("suggested-action")
+        self.save_button.set_halign(Gtk.Align.CENTER)
         self.save_button.connect("clicked", self._on_save_clicked)
         self.content.append(self.save_button)
 
@@ -196,19 +207,29 @@ class ContactsPage(Gtk.Box):
         self.content.set_margin_bottom(24)
         self.content.set_margin_start(24)
         self.content.set_margin_end(24)
-        self.append(self.content)
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.append(scrolled)
+        self.clamp = Adw.Clamp()
+        self.clamp.set_maximum_size(640)
+        scrolled.set_child(self.clamp)
+        self.clamp.set_child(self.content)
 
+        contacts_group = Adw.PreferencesGroup()
+        contacts_group.set_title("Contacts")
         self.search_entry = Gtk.SearchEntry()
+        self.search_entry.set_placeholder_text("Search contacts")
         self.search_entry.connect("changed", self._on_search_changed)
-        self.content.append(self.search_entry)
-
+        contacts_group.add(self.search_entry)
         self.contact_list = Gtk.ListBox()
         self.contact_list.add_css_class("boxed-list")
         self.contact_list.set_selection_mode(Gtk.SelectionMode.NONE)
         self.contact_list.connect("row-activated", self._on_row_activated)
-        self.content.append(self.contact_list)
+        contacts_group.add(self.contact_list)
+        self.content.append(contacts_group)
 
         self.add_button = Gtk.Button(label="Add contact")
+        self.add_button.set_halign(Gtk.Align.CENTER)
         self.add_button.connect("clicked", self._on_add_clicked)
         self.content.append(self.add_button)
 

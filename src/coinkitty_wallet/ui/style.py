@@ -35,6 +35,7 @@ CSS_TEXT = """
   border-radius: 9999px;
   min-width: 32px;
   min-height: 32px;
+  padding: 0;
   font-weight: bold;
   background-color: #f5c442;
   color: #1a1a1a;

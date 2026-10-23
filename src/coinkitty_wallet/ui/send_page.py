@@ -17,6 +17,13 @@ from ..units import ASSETS, parse_amount, format_amount
 from ..bech32m import is_valid_address
 
 
+def _short_address(address: str) -> str:
+    """First 12 chars + an ellipsis + the last 6, for a compact subtitle."""
+    if len(address) <= 18:
+        return address
+    return f"{address[:12]}…{address[-6:]}"
+
+
 class SendPage(Gtk.Box):
     """Send screen: a two-step Stack ("pick" then "amount") over demo coins."""
 
@@ -53,41 +60,76 @@ class SendPage(Gtk.Box):
     # ---- pick step --------------------------------------------------------
 
     def _build_pick(self) -> Gtk.Box:
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        box.append(scrolled)
+        clamp = Adw.Clamp()
+        clamp.set_maximum_size(640)
+        scrolled.set_child(clamp)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        content.set_margin_top(24)
+        content.set_margin_bottom(24)
+        content.set_margin_start(24)
+        content.set_margin_end(24)
+        clamp.set_child(content)
 
+        # "Pay with": asset dropdown in an ActionRow suffix
+        pay_group = Adw.PreferencesGroup()
+        pay_group.set_title("Pay with")
+        pay_row = Adw.ActionRow()
+        pay_row.set_title("Pay with")
         model = Gtk.StringList.new(list(ASSETS))
         self.asset_dropdown = Gtk.DropDown(model=model)
         self.asset_dropdown.connect("notify::selected", self._on_asset_selected)
-        box.append(self.asset_dropdown)
+        pay_row.add_suffix(self.asset_dropdown)
+        pay_group.add(pay_row)
+        content.append(pay_group)
 
+        # "Favorites": top-contact pill buttons in a centered FlowBox
+        fav_group = Adw.PreferencesGroup()
+        fav_group.set_title("Favorites")
         self.top_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        box.append(self.top_box)
+        self.top_box.set_halign(Gtk.Align.CENTER)
+        fav_group.add(self.top_box)
+        content.append(fav_group)
 
+        # "All contacts": search entry, then a boxed list
+        contacts_group = Adw.PreferencesGroup()
+        contacts_group.set_title("All contacts")
         self.search_entry = Gtk.SearchEntry()
+        self.search_entry.set_placeholder_text("Search contacts")
         self.search_entry.connect("search-changed", self._on_search_changed)
-        box.append(self.search_entry)
-
+        contacts_group.add(self.search_entry)
         self.contact_list = Gtk.ListBox()
+        self.contact_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self.contact_list.add_css_class("boxed-list")
         self.contact_list.connect("row-activated", self._on_row_activated)
-        box.append(self.contact_list)
+        contacts_group.add(self.contact_list)
+        content.append(contacts_group)
 
+        # "Or paste an address": entry row, then centered action buttons
+        address_group = Adw.PreferencesGroup()
+        address_group.set_title("Or paste an address")
         self.address_entry = Gtk.Entry()
-        self.address_entry.set_text("kitty1...")
+        self.address_entry.set_placeholder_text("kitty1… address")
         self.address_entry.connect("changed", self._on_address_changed)
-        box.append(self.address_entry)
+        address_group.add(self.address_entry)
+        content.append(address_group)
 
+        button_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        button_row.set_halign(Gtk.Align.CENTER)
         self.use_address_button = Gtk.Button(label="Use address")
         self.use_address_button.set_sensitive(False)
         self.use_address_button.connect("clicked", self._on_use_address)
-        box.append(self.use_address_button)
-
+        button_row.append(self.use_address_button)
         self.luck_button = Gtk.Button(label="Luck")
         self.luck_button.connect("clicked", self._on_luck_clicked)
-        box.append(self.luck_button)
-
+        button_row.append(self.luck_button)
         rain_button = Gtk.Button(label="Rain")
         rain_button.connect("clicked", self._on_rain_clicked)
-        box.append(rain_button)
+        button_row.append(rain_button)
+        content.append(button_row)
 
         self._refresh_pick()
         return box
@@ -134,6 +176,7 @@ class SendPage(Gtk.Box):
         for contact in contacts:
             row = Adw.ActionRow()
             row.set_title(contact.name)
+            row.set_subtitle(_short_address(contact.address))
             self.contact_list.append(row)
             self._row_contact[row] = contact
 
@@ -202,27 +245,59 @@ class SendPage(Gtk.Box):
     # ---- amount step ------------------------------------------------------
 
     def _build_amount(self) -> Gtk.Box:
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        box.append(scrolled)
+        clamp = Adw.Clamp()
+        clamp.set_maximum_size(640)
+        scrolled.set_child(clamp)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        content.set_margin_top(24)
+        content.set_margin_bottom(24)
+        content.set_margin_start(24)
+        content.set_margin_end(24)
+        clamp.set_child(content)
+
         self.recipient_label = Gtk.Label(label="")
-        box.append(self.recipient_label)
+        self.recipient_label.add_css_class("title-2")
+        content.append(self.recipient_label)
+        self.address_label = Gtk.Label(label="")
+        self.address_label.add_css_class("dim-label")
+        content.append(self.address_label)
+
+        amount_group = Adw.PreferencesGroup()
+        amount_group.set_title("Amount")
+        self.amount_entry = Adw.EntryRow()
+        self.amount_entry.set_title("Amount (KITTY)")
+        amount_group.add(self.amount_entry)
         self.asset_label = Gtk.Label(label="")
-        box.append(self.asset_label)
+        self.asset_label.add_css_class("dim-label")
+        amount_group.add(self.asset_label)
         self.balance_label = Gtk.Label(label="")
-        box.append(self.balance_label)
-        self.amount_entry = Gtk.Entry()
-        box.append(self.amount_entry)
-        self.memo_entry = Gtk.Entry()
-        box.append(self.memo_entry)
+        self.balance_label.add_css_class("dim-label")
+        amount_group.add(self.balance_label)
+        self.memo_entry = Adw.EntryRow()
+        self.memo_entry.set_title("Memo (optional)")
+        amount_group.add(self.memo_entry)
+        content.append(amount_group)
+
         self.error_label = Gtk.Label(label="")
         self.error_label.add_css_class("error")
         self.error_label.set_visible(False)
-        box.append(self.error_label)
+        content.append(self.error_label)
+
+        button_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        button_row.set_halign(Gtk.Align.CENTER)
         back_button = Gtk.Button(label="Back")
         back_button.connect("clicked", self._on_back_clicked)
-        box.append(back_button)
+        button_row.append(back_button)
         self.send_button = Gtk.Button(label="Send")
+        self.send_button.add_css_class("suggested-action")
+        self.send_button.add_css_class("pill")
         self.send_button.connect("clicked", self._on_send_clicked)
-        box.append(self.send_button)
+        button_row.append(self.send_button)
+        content.append(button_row)
         return box
 
     def go_amount(self) -> None:
@@ -235,6 +310,14 @@ class SendPage(Gtk.Box):
         balance = format_amount(self.backend.balance(self._asset_code),
                                 ASSETS[self._asset_code])
         self.balance_label.set_text(f"Balance: {balance} {self._asset_code}")
+        address = self._recipient_address
+        if address is None and self._recipient_contact_id is not None:
+            for contact in self.backend.contacts():
+                if contact.id == self._recipient_contact_id:
+                    address = contact.address
+                    break
+        self.address_label.set_text(
+            _short_address(address) if address else "")
 
     def go_pick(self) -> None:
         """Return to the pick step and clear the chosen recipient."""
@@ -276,7 +359,8 @@ class SendPage(Gtk.Box):
             return
         contact_id = self._recipient_contact_id
         if contact_id is None and self._recipient_address:
-            added = self.backend.add_contact("New contact", self._recipient_address)
+            added = self.backend.add_contact("New contact",
+                                             self._recipient_address)
             contact_id = added.id
             self._recipient_name = added.name
         self.backend.send(self._asset_code, amount, contact_id,

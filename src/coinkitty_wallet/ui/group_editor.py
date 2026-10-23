@@ -31,11 +31,14 @@ class GroupEditor(Adw.Dialog):
         self.content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
 
         self.name_entry = Gtk.Entry()
+        self.name_entry.set_placeholder_text("Group name")
         if group is not None:
             self.name_entry.set_text(group.name)
         self.name_entry.connect("changed", self._on_name_changed)
         self.content.append(self.name_entry)
 
+        members_group = Adw.PreferencesGroup()
+        members_group.set_title("Members")
         self.contact_list = Gtk.ListBox()
         self.contact_list.add_css_class("boxed-list")
         self.contact_list.set_selection_mode(Gtk.SelectionMode.NONE)
@@ -48,28 +51,31 @@ class GroupEditor(Adw.Dialog):
             row.set_title(contact.name)
             self.contact_list.append(row)
             self._check_by_contact[check] = contact
-        self.content.append(self.contact_list)
-
+        members_group.add(self.contact_list)
         self.favorite_switch = Gtk.Switch()
         self.favorite_switch.set_active(bool(group.favorite) if group else False)
-        self.content.append(self.favorite_switch)
+        members_group.add(self.favorite_switch)
+        self.content.append(members_group)
 
         if self._existing:
             self.delete_button = Gtk.Button(label="Delete")
             self.delete_button.add_css_class("destructive-action")
+            self.delete_button.set_halign(Gtk.Align.CENTER)
             self.delete_button.connect("clicked", self._on_delete_clicked)
             self.content.append(self.delete_button)
         else:
             self.delete_button = None
 
+        button_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        button_row.set_halign(Gtk.Align.CENTER)
         self.cancel_button = Gtk.Button(label="Cancel")
         self.cancel_button.connect("clicked", self._on_cancel_clicked)
-        self.content.append(self.cancel_button)
-
+        button_row.append(self.cancel_button)
         self.save_button = Gtk.Button(label="Save")
         self.save_button.add_css_class("suggested-action")
         self.save_button.connect("clicked", self._on_save_clicked)
-        self.content.append(self.save_button)
+        button_row.append(self.save_button)
+        self.content.append(button_row)
 
         self.set_child(self.content)
         self.set_title("Edit group" if self._existing else "New group")

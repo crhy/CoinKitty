@@ -41,49 +41,67 @@ class RainPage(Gtk.Box):
         self.scrolled.set_propagate_natural_height(True)
         self.toast_overlay.set_child(self.scrolled)
 
+        self.clamp = Adw.Clamp()
+        self.clamp.set_maximum_size(640)
+        self.scrolled.set_child(self.clamp)
+
         self.content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         self.content.set_margin_top(24)
         self.content.set_margin_bottom(24)
         self.content.set_margin_start(24)
         self.content.set_margin_end(24)
-        self.scrolled.set_child(self.content)
+        self.clamp.set_child(self.content)
 
         # ---- asset + total ------------------------------------------------
+        total_group = Adw.PreferencesGroup()
+        total_group.set_title("Rain")
+        asset_row = Adw.ActionRow()
+        asset_row.set_title("Asset")
         model = Gtk.StringList.new(["KITTY", "BTC"])
         self.asset_dropdown = Gtk.DropDown(model=model)
         self.asset_dropdown.connect("notify::selected", self._on_asset_selected)
-        self.content.append(self.asset_dropdown)
-
+        asset_row.add_suffix(self.asset_dropdown)
+        total_group.add(asset_row)
         self.total_entry = Gtk.Entry()
+        self.total_entry.set_placeholder_text("Total to rain")
         self.total_entry.connect("changed", self._on_total_changed)
-        self.content.append(self.total_entry)
+        total_group.add(self.total_entry)
+        self.content.append(total_group)
 
         # ---- group list ---------------------------------------------------
+        groups_group = Adw.PreferencesGroup()
+        groups_group.set_title("Groups")
         self.group_list = Gtk.ListBox()
         self.group_list.add_css_class("boxed-list")
         self.group_list.set_selection_mode(Gtk.SelectionMode.NONE)
-        self.content.append(self.group_list)
-
+        groups_group.add(self.group_list)
         new_group_button = Gtk.Button(label="New group")
+        new_group_button.set_halign(Gtk.Align.CENTER)
         new_group_button.connect("clicked", self._on_new_group_clicked)
-        self.content.append(new_group_button)
+        groups_group.add(new_group_button)
+        self.content.append(groups_group)
 
         # ---- split mode ---------------------------------------------------
+        split_group = Adw.PreferencesGroup()
+        split_group.set_title("Split")
         self.equal_toggle = Gtk.ToggleButton(label="Equal")
         self.equal_toggle.set_active(True)
         self.custom_toggle = Gtk.ToggleButton(label="Custom")
         self.custom_toggle.set_group(self.equal_toggle)
-        self.content.append(self.equal_toggle)
-        self.content.append(self.custom_toggle)
+        split_group.add(self.equal_toggle)
+        split_group.add(self.custom_toggle)
+        self.content.append(split_group)
 
         # ---- preview ------------------------------------------------------
+        preview_group = Adw.PreferencesGroup()
+        preview_group.set_title("Preview")
         self.preview_list = Gtk.ListBox()
         self.preview_list.add_css_class("boxed-list")
         self.preview_list.set_selection_mode(Gtk.SelectionMode.NONE)
-        self.content.append(self.preview_list)
-
+        preview_group.add(self.preview_list)
         self.assigned_label = Gtk.Label(label="")
-        self.content.append(self.assigned_label)
+        preview_group.add(self.assigned_label)
+        self.content.append(preview_group)
 
         # ---- rain button + error -----------------------------------------
         self.rain_button = Gtk.Button(label="Rain")
@@ -186,6 +204,7 @@ class RainPage(Gtk.Box):
                 row = Adw.ActionRow()
                 row.set_title(name_by_id.get(cid, ""))
                 entry = Gtk.Entry()
+                entry.set_placeholder_text("Amount")
                 entry.connect("changed", self._on_custom_changed)
                 row.add_suffix(entry)
                 self.preview_list.append(row)
