@@ -131,6 +131,22 @@ class PageVisibilityTest(unittest.TestCase):
         self.assert_on_screen(window, swap.amount_entry)
         self.assert_on_screen(window, swap.swap_button)
 
+    def test_earn(self):
+        window = WalletWindow(None, self.backend)
+        window.show_page("earn")
+        self.present(window)
+        earn = window._pages["earn"]
+        self.assert_on_screen(window, earn.search_entry)
+        self.assert_on_screen(window, earn.bounty_list)
+
+    def test_launch(self):
+        window = WalletWindow(None, self.backend)
+        window.show_page("launch")
+        self.present(window)
+        launch = window._pages["launch"]
+        self.assert_on_screen(window, launch.title_entry)
+        self.assert_on_screen(window, launch.post_button)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -23,6 +23,8 @@ from ..ui.contacts_page import ContactsPage
 from ..ui.vault_page import VaultPage
 from ..ui.launch_window_page import LaunchWindowPage
 from ..ui.swap_page import SwapPage
+from ..ui.earn_page import EarnPage
+from ..ui.launch_page import LaunchPage
 from ..ui.style import install_css
 
 BANNER_TEXT = "Demo coins: KittyChain is not live yet. Nothing here is real money."
@@ -70,6 +72,10 @@ class WalletWindow(Adw.ApplicationWindow):
                 page = LaunchWindowPage(backend)
             elif page_id == "swap":
                 page = SwapPage(backend, rng=random.Random(7))
+            elif page_id == "earn":
+                page = EarnPage(backend, on_open_bounty=lambda bounty_id: None)
+            elif page_id == "launch":
+                page = LaunchPage(backend, on_open_bounty=lambda bounty_id: None)
             else:
                 status = Adw.StatusPage()
                 status.set_icon_name(icon)
