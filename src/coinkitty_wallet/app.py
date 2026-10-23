@@ -13,8 +13,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, GLib
 
-from ..demo_backend import DemoBackend
-from ..ui.window import WalletWindow
+from .demo_backend import DemoBackend
+from .ui.window import WalletWindow
 
 APPLICATION_ID = "io.github.crhy.CoinKittyWallet"
 
