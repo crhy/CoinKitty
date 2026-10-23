@@ -29,6 +29,7 @@ class PageVisibilityTest(unittest.TestCase):
 
     def present(self, window):
         """Lay the window out: present it, then pump the main context (bounded)."""
+        window.content_stack.set_transition_duration(0)
         window.present()
         ctx = GLib.MainContext.default()
         for _ in range(200):
@@ -45,6 +46,15 @@ class PageVisibilityTest(unittest.TestCase):
         self.assertGreater(rect.get_height(), 0)
         self.assertLessEqual(rect.get_y() + rect.get_height(),
                              window.get_height())
+        node = widget
+        steps = 0
+        while node is not None and steps < 100:
+            if node is window:
+                break
+            if isinstance(node, Gtk.ScrolledWindow):
+                self.assertGreaterEqual(node.get_height(), 300)
+            node = node.get_parent()
+            steps += 1
 
     def test_send_pick(self):
         window = WalletWindow(None, self.backend)

@@ -48,9 +48,11 @@ class SendPage(Gtk.Box):
 
         # ---- toast overlay wraps the whole page ---------------------------
         self.toast_overlay = Adw.ToastOverlay()
+        self.toast_overlay.set_vexpand(True)
         self.append(self.toast_overlay)
 
         self.stack = Gtk.Stack()
+        self.stack.set_vexpand(True)
         self.toast_overlay.set_child(self.stack)
 
         self.stack.add_named(self._build_pick(), "pick")
@@ -63,6 +65,7 @@ class SendPage(Gtk.Box):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled.set_vexpand(True)
         box.append(scrolled)
         clamp = Adw.Clamp()
         clamp.set_maximum_size(640)
@@ -248,6 +251,7 @@ class SendPage(Gtk.Box):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled.set_vexpand(True)
         box.append(scrolled)
         clamp = Adw.Clamp()
         clamp.set_maximum_size(640)

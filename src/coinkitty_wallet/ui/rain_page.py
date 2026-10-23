@@ -86,10 +86,15 @@ class RainPage(Gtk.Box):
         split_group.set_title("Split")
         self.equal_toggle = Gtk.ToggleButton(label="Equal")
         self.equal_toggle.set_active(True)
+        self.equal_toggle.add_css_class("linked")
         self.custom_toggle = Gtk.ToggleButton(label="Custom")
         self.custom_toggle.set_group(self.equal_toggle)
-        split_group.add(self.equal_toggle)
-        split_group.add(self.custom_toggle)
+        self.custom_toggle.add_css_class("linked")
+        split_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        split_box.set_halign(Gtk.Align.CENTER)
+        split_box.append(self.equal_toggle)
+        split_box.append(self.custom_toggle)
+        split_group.add(split_box)
         self.content.append(split_group)
 
         # ---- preview ------------------------------------------------------
@@ -141,7 +146,7 @@ class RainPage(Gtk.Box):
             child = nxt
         for group in self.backend.rain_groups():
             row = Adw.ActionRow()
-            check = Gtk.CheckButton(label=group.name)
+            check = Gtk.CheckButton()
             row.add_prefix(check)
             row.set_title(group.name)
             row.set_subtitle(f"{len(group.member_ids)} people")
