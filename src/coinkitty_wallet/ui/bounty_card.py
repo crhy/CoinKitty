@@ -46,10 +46,11 @@ def parse_kitty(text: str) -> int | None:
 class BountyCard(Adw.Dialog):
     """An :class:`Adw.Dialog` showing one bounty and its allowed actions."""
 
-    def __init__(self, backend, bounty: Bounty) -> None:
+    def __init__(self, backend, bounty: Bounty, on_changed=None) -> None:
         super().__init__()
         self.backend = backend
         self.bounty = bounty
+        self._on_changed = on_changed
         self._poster = bounty.poster == backend.address()
         self._last_release: tuple[int, int] | None = None
         self._sub_bounties: list[Bounty] = []
@@ -202,6 +203,7 @@ class BountyCard(Adw.Dialog):
             self._show_error("Only a funded bounty can accept a bid")
             return
         self.backend.accept(self.bounty.id, bid_id)
+        self._notify_changed()
 
     def _on_deliver_clicked(self, *_: object) -> None:
         """Mark the assigned bounty delivered."""
@@ -216,6 +218,7 @@ class BountyCard(Adw.Dialog):
             self._show_error("Only a delivered bounty can be released")
             return
         self._last_release = self.backend.release(self.bounty.id)
+        self._notify_changed()
 
     def _on_cancel_clicked(self, *_: object) -> None:
         """Ask to cancel a destructive action through a confirm dialog."""
@@ -237,6 +240,7 @@ class BountyCard(Adw.Dialog):
         """Finish the cancel when the confirm dialog answers ``confirm``."""
         if response == "confirm":
             self.backend.cancel(self.bounty.id)
+            self._notify_changed()
 
     def _on_hammer_clicked(self, *_: object) -> None:
         """Split the bounty into a funded sub-bounty out of its escrow."""
@@ -252,6 +256,7 @@ class BountyCard(Adw.Dialog):
         self._sub_bounties.append(child)
         self.backend._bounties.append(child)
         self.backend._save()
+        self._notify_changed()
 
     def _on_place_bid_clicked(self, *_: object) -> None:
         """Place a bid on the bounty from the wallet's own address."""
@@ -267,6 +272,12 @@ class BountyCard(Adw.Dialog):
             note=self.bid_note_entry.get_text(),
         )
         self.bounty.bids.append(bid)
+        self._notify_changed()
+
+    def _notify_changed(self) -> None:
+        """Tell the owner the card changed so it can refresh its pages."""
+        if self._on_changed is not None:
+            self._on_changed()
 
     def _show_error(self, message: str) -> None:
         """Show the error label (css ``error``) and hide it when empty."""

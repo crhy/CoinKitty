@@ -248,7 +248,13 @@ class WalletWindow(Adw.ApplicationWindow):
         bounty = next((b for b in self._backend.bounties() if b.id == bounty_id), None)
         if bounty is None:
             return
-        self._bounty_card = BountyCard(self._backend, bounty)
+        self._bounty_card = BountyCard(self._backend, bounty, on_changed=self._on_bounty_changed)
+        self._bounty_card.present(self)
+
+    def _on_bounty_changed(self) -> None:
+        """Refresh the bounty pages and the balance pages after the card changes."""
+        for page_id in ("earn", "launch", "home", "wallet"):
+            self._pages[page_id].refresh()
 
     # ---- navigation -------------------------------------------------------
 

@@ -30,6 +30,7 @@ class WalletPage(Gtk.Box):
         self._backend = backend
         self._row_asset: dict[Adw.ActionRow, str] = {}
         self._row_check: dict[Adw.ActionRow, Gtk.Image] = {}
+        self._row_balance_label: dict[Adw.ActionRow, Gtk.Label] = {}
 
         # ---- scrolled page box (never overflows) --------------------------
         self._scrolled = Gtk.ScrolledWindow()
@@ -58,7 +59,9 @@ class WalletPage(Gtk.Box):
             badge.set_valign(Gtk.Align.CENTER)
             row.add_prefix(badge)
             balance = format_amount(self._balance(code), asset)
-            row.add_suffix(Gtk.Label(label=f"{balance} {asset.code}"))
+            balance_label = Gtk.Label(label=f"{balance} {asset.code}")
+            row.add_suffix(balance_label)
+            self._row_balance_label[row] = balance_label
             check = Gtk.Image.new_from_icon_name("object-select-symbolic")
             check.set_visible(False)
             row.add_suffix(check)
@@ -127,6 +130,13 @@ class WalletPage(Gtk.Box):
         self._receive_heading.set_label(self._heading_text())
         self.address_label.set_label(self._address_text())
         self.copy_button.set_visible(self.selected_asset() == "KITTY")
+
+    def refresh(self) -> None:
+        """Re-read the backend and update each asset's balance label and the legend."""
+        for row, code in self._row_asset.items():
+            balance = format_amount(self._balance(code), ASSETS[code])
+            self._row_balance_label[row].set_label(f"{balance} {code}")
+        self._build_legend()
 
     # ---- receive box text -------------------------------------------------
 
