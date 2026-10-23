@@ -189,6 +189,93 @@ class SwapUiTest(unittest.TestCase):
         swap._update_form()
         self.assertFalse(swap.swap_button.get_sensitive())
 
+    def _pump(self):
+        ctx = GLib.MainContext.default()
+        for _ in range(50):
+            n = 0
+            while ctx.iteration(False):
+                n += 1
+                if n >= 1000:
+                    break
+
+    def test_amount_signal_updates_form(self):
+        backend = DemoBackend.create("/tmp/swap-ui-signal.json", random.Random(11))
+        window = WalletWindow(None, backend)
+        window.show_page("swap")
+        self.present(window)
+        page = window._pages["swap"]
+        page.amount_entry.set_text("2")
+        self._pump()
+        self.assertTrue(page.summary_label.get_text().startswith("You receive about"))
+        self.assertTrue(page.swap_button.get_sensitive())
+        page.amount_entry.set_text("abc")
+        self._pump()
+        self.assertFalse(page.swap_button.get_sensitive())
+
+    def test_step_icons_one_stack_each(self):
+        backend = DemoBackend.create("/tmp/swap-ui-icons.json", random.Random(12))
+        window = WalletWindow(None, backend)
+        window.show_page("swap")
+        self.present(window)
+        page = window._pages["swap"]
+        page._asset_code = "BTC"
+        page.amount_entry.set_text("0.0001")
+        self._pump()
+        page._on_swap_clicked(page.swap_button)
+        started = page._swap.started_at
+        holder = {"t": float(started)}
+        page.clock = lambda: holder["t"]
+        for _ in range(20):
+            holder["t"] += 0.325
+            page._tick()
+        self.assertAlmostEqual(holder["t"], float(started) + 6.5, places=3)
+        names = []
+        for row in page._step_rows:
+            stacks = 0
+            stack = None
+
+            def descend(widget, depth):
+                nonlocal stacks, stack
+                if depth > 4:
+                    return
+                child = widget.get_first_child()
+                n = 0
+                while child is not None:
+                    nxt = child.get_next_sibling()
+                    if isinstance(child, Gtk.Stack):
+                        stacks += 1
+                        stack = child
+                    descend(child, depth + 1)
+                    child = nxt
+                    n += 1
+                    if n >= 20:
+                        break
+
+            descend(row, 0)
+            self.assertEqual(stacks, 1)
+            names.append(stack.get_visible_child_name())
+        self.assertEqual(names, ["done", "done", "current", "todo", "todo"])
+
+    def test_progress_button_visibility(self):
+        backend = DemoBackend.create("/tmp/swap-ui-vis.json", random.Random(13))
+        window = WalletWindow(None, backend)
+        window.show_page("swap")
+        self.present(window)
+        page = window._pages["swap"]
+        page._asset_code = "BTC"
+        page.amount_entry.set_text("0.0001")
+        self._pump()
+        page._on_swap_clicked(page.swap_button)
+        started = page._swap.started_at
+        holder = {"t": float(started)}
+        page.clock = lambda: holder["t"]
+        self.assertFalse(page.done_button.get_visible())
+        self.assertTrue(page.fail_button.get_visible())
+        holder["t"] = float(started + 12)
+        page._tick()
+        self.assertTrue(page.done_button.get_visible())
+        self.assertFalse(page.fail_button.get_visible())
+
 
 if __name__ == "__main__":
     unittest.main()

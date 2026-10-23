@@ -61,7 +61,7 @@ class SwapPage(Gtk.Box):
         self._applied = False
         self._asset_code = "KITTY"
         self._step_rows: list[Adw.ActionRow] = []
-        self._row_spinners: dict[Adw.ActionRow, Gtk.Spinner] = {}
+        self.step_icons: list[tuple[Gtk.Stack, Gtk.Spinner]] = []
 
         self.toast_overlay = Adw.ToastOverlay()
         self.toast_overlay.set_vexpand(True)
@@ -108,7 +108,7 @@ class SwapPage(Gtk.Box):
 
         self.amount_entry = Adw.EntryRow()
         self.amount_entry.set_title(f"Amount to sell ({self._asset_code})")
-        self.amount_entry.connect("changed", self._update_form)
+        self.amount_entry.connect("changed", self._on_amount_changed)
         group.add(self.amount_entry)
 
         self.buy_label = Gtk.Label(label="")
@@ -133,6 +133,10 @@ class SwapPage(Gtk.Box):
         self.swap_button.connect("clicked", self._on_swap_clicked)
         content.append(self.swap_button)
         return box
+
+    def _on_amount_changed(self, entry) -> None:
+        """GTK passes the changed entry as an argument; recompute the form."""
+        self._update_form()
 
     def _on_asset_selected(self, dropdown, previous) -> None:
         """Track the asset chosen in the dropdown and relabel the amount row."""
@@ -205,12 +209,18 @@ class SwapPage(Gtk.Box):
         group = Adw.PreferencesGroup()
         group.set_title("Swap")
         self._step_rows = []
-        self._row_spinners = {}
+        self.step_icons = []
         for step in STEPS:
             row = Adw.ActionRow()
             row.set_title(step)
+            stack = Gtk.Stack()
+            stack.add_named(Gtk.Image.new_from_icon_name(DONE_ICON), "done")
             spinner = Gtk.Spinner()
-            self._row_spinners[row] = spinner
+            stack.add_named(spinner, "current")
+            stack.add_named(Gtk.Image.new_from_icon_name(FUTURE_ICON), "todo")
+            stack.set_visible_child_name("todo")
+            row.add_prefix(stack)
+            self.step_icons.append((stack, spinner))
             group.add(row)
             self._step_rows.append(row)
         content.append(group)
@@ -222,6 +232,7 @@ class SwapPage(Gtk.Box):
 
         self.fail_button = Gtk.Button(label="Simulate a failure")
         self.fail_button.add_css_class("flat")
+        self.fail_button.add_css_class("destructive-action")
         self.fail_button.set_halign(Gtk.Align.CENTER)
         self.fail_button.connect("clicked", self._on_fail_clicked)
         content.append(self.fail_button)
@@ -232,6 +243,8 @@ class SwapPage(Gtk.Box):
         self.done_button.set_halign(Gtk.Align.CENTER)
         self.done_button.connect("clicked", self._on_done_clicked)
         content.append(self.done_button)
+        self.fail_button.set_visible(True)
+        self.done_button.set_visible(False)
         return box
 
     def _refresh_progress(self) -> None:
@@ -251,24 +264,25 @@ class SwapPage(Gtk.Box):
                 icon = None
             else:
                 icon = FUTURE_ICON
-            self._set_row_icon(row, icon)
+            self._set_row_icon(index, icon)
         if self._swap._failed and state == "Refunding":
             self.refund_label.set_text(
                 f"Refunding in {format_clock(self._swap.refund_countdown(now))}")
         else:
             self.refund_label.set_text("")
 
-    def _set_row_icon(self, row: Adw.ActionRow, icon: str | None) -> None:
-        """Replace a step row's prefix with the given icon, or a spinner."""
-        child = row.get_first_child()
-        while child is not None:
-            nxt = child.get_next_sibling()
-            row.remove(child)
-            child = nxt
+    def _set_row_icon(self, index: int, icon: str | None) -> None:
+        """Point one step row's prefix Stack at the right named child."""
+        stack, spinner = self.step_icons[index]
         if icon is None:
-            row.add_prefix(self._row_spinners[row])
+            stack.set_visible_child_name("current")
+            spinner.start()
+        elif icon == DONE_ICON:
+            stack.set_visible_child_name("done")
+            spinner.stop()
         else:
-            row.add_prefix(Gtk.Image.new_from_icon_name(icon))
+            stack.set_visible_child_name("todo")
+            spinner.stop()
 
     def _start_timer(self) -> None:
         """Schedule the 500 ms progress tick."""
@@ -293,15 +307,15 @@ class SwapPage(Gtk.Box):
                         f"Swapped {format_amount(self._swap.amount, ASSETS[sell_asset])} "
                         f"{sell_asset} for {format_amount(self._swap.receive, ASSETS[buy_asset])} "
                         f"{buy_asset}"))
-            self.done_button.set_sensitive(True)
-            self.fail_button.set_sensitive(False)
+            self.done_button.set_visible(True)
+            self.fail_button.set_visible(False)
             return False
         if state == "Refunded":
-            self.done_button.set_sensitive(True)
-            self.fail_button.set_sensitive(False)
+            self.done_button.set_visible(True)
+            self.fail_button.set_visible(False)
             return False
-        self.fail_button.set_sensitive(True)
-        self.done_button.set_sensitive(False)
+        self.fail_button.set_visible(True)
+        self.done_button.set_visible(False)
         return True
 
     def stop_timer(self) -> None:
