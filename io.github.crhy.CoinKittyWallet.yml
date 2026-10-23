@@ -1,0 +1,34 @@
+# Flatpak manifest for CoinKitty Wallet.
+# The demo wallet needs no network and no filesystem access outside its own
+# sandbox data dir, so finish-args stays minimal.
+id: io.github.crhy.CoinKittyWallet
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+command: coinkitty-wallet
+
+# Exactly: ipc, fallback-x11, wayland, dri. No --share=network, no --filesystem.
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+
+modules:
+  - name: coinkitty-wallet
+    sources:
+      - type: dir
+        path: src/coinkitty_wallet
+        dest: coinkitty_wallet
+      - type: dir
+        path: data
+        dest: data
+    buildsystem: simple
+    build-commands:
+      - install -d /app/lib/coinkitty-wallet
+      - cp -r coinkitty_wallet /app/lib/coinkitty-wallet/
+      - find /app/lib/coinkitty-wallet -name __pycache__ -prune -exec rm -rf {} +
+      - install -Dm755 data/coinkitty-wallet.sh /app/bin/coinkitty-wallet
+      - install -Dm644 data/io.github.crhy.CoinKittyWallet.desktop -t /app/share/applications
+      - install -Dm644 data/io.github.crhy.CoinKittyWallet.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 data/io.github.crhy.CoinKittyWallet.svg -t /app/share/icons/hicolor/scalable/apps

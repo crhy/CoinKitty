@@ -133,6 +133,43 @@ class DemoBackendTest(unittest.TestCase):
         self.assertEqual(history[0].id, second.id)
         self.assertEqual(history[1].id, first.id)
 
+    def test_save_atomic_no_tmp_left(self):
+        wallet = DemoBackend.create(self.path, random.Random(1))
+        wallet.send("BTC", 1, wallet.contacts()[0].id)
+        self.assertFalse(os.path.exists(self.path + ".tmp"))
+        reloaded = DemoBackend.load(self.path)
+        self.assertEqual(reloaded.address(), wallet.address())
+        self.assertEqual(reloaded.balance("BTC"), wallet.balance("BTC"))
+
+    def test_send_bool_amount_rejected(self):
+        wallet = DemoBackend.create(self.path, random.Random(1))
+        target = wallet.contacts()[0]
+        before = wallet.balance("KITTY")
+        with self.assertRaises(ValueError):
+            wallet.send("KITTY", True, target.id)
+        self.assertEqual(wallet.balance("KITTY"), before)
+        self.assertEqual(wallet.transactions(), [])
+
+    def test_rain_bool_total_rejected(self):
+        wallet = DemoBackend.create(self.path, random.Random(1))
+        group = wallet.rain_groups()[0]
+        before = wallet.balance("KITTY")
+        with self.assertRaises(ValueError):
+            wallet.rain("KITTY", True, group.member_ids)
+        self.assertEqual(wallet.balance("KITTY"), before)
+        self.assertEqual(wallet.transactions(), [])
+
+    def test_rain_bool_custom_amount_rejected(self):
+        wallet = DemoBackend.create(self.path, random.Random(1))
+        group = wallet.rain_groups()[0]
+        before = wallet.balance("KITTY")
+        amounts = {member_id: 5 * 10**24 for member_id in group.member_ids}
+        amounts[group.member_ids[0]] = True
+        with self.assertRaises(ValueError):
+            wallet.rain("KITTY", 15 * 10**24, group.member_ids, amounts)
+        self.assertEqual(wallet.balance("KITTY"), before)
+        self.assertEqual(wallet.transactions(), [])
+
 
 if __name__ == "__main__":
     unittest.main()

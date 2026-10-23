@@ -26,6 +26,11 @@ def _default_clock() -> int:
     return int(time.time())
 
 
+def _is_money(value: object) -> bool:
+    """True for a positive int that is not a bool (True is an int in Python)."""
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
 class DemoBackend:
     """In-memory wallet state backed by a single JSON file on disk."""
 
@@ -99,11 +104,16 @@ class DemoBackend:
         }
 
     def _save(self) -> None:
+        """Write the state atomically: temp file in the same dir, fsync, rename."""
         parent = os.path.dirname(self.path)
         if parent:
             os.makedirs(parent, exist_ok=True)
-        with open(self.path, "w") as handle:
+        tmp = self.path + ".tmp"
+        with open(tmp, "w") as handle:
             json.dump(self._to_state(), handle)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, self.path)
 
     # ---- accessors -------------------------------------------------------
 
@@ -168,8 +178,8 @@ class DemoBackend:
 
     def send(self, asset: str, amount: int, contact_id: str, memo: str = "") -> Transaction:
         """Send ``amount`` of ``asset`` to a contact; reduces the balance."""
-        if not isinstance(amount, int) or amount <= 0:
-            raise ValueError("amount must be a positive int")
+        if not _is_money(amount):
+            raise ValueError("amount must be a positive int (bools are not money)")
         if amount > self.balance(asset):
             raise ValueError("amount exceeds balance")
         contact = self._require_contact(contact_id)
@@ -195,8 +205,8 @@ class DemoBackend:
         given and valid. Returns one transaction per member (newest first, like
         :meth:`transactions`).
         """
-        if not isinstance(total, int) or total <= 0:
-            raise ValueError("total must be a positive int")
+        if not _is_money(total):
+            raise ValueError("total must be a positive int (bools are not money)")
         if total > self.balance(asset):
             raise ValueError("total exceeds balance")
         for member in member_ids:
@@ -205,6 +215,8 @@ class DemoBackend:
         if amounts is None:
             shares = split_equal(total, member_ids)
         else:
+            if any(isinstance(value, bool) for value in amounts.values()):
+                raise ValueError("custom amounts must be plain ints, not bools")
             validate_custom(total, amounts)
             shares = amounts
 
