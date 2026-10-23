@@ -1,0 +1,7 @@
+.strata/
+__pycache__/
+*.pyc
+build-dir/
+repo/
+.flatpak-builder/
+*.flatpak

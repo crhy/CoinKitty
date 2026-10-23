@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component type="desktop-application">
+  <id>io.github.crhy.CoinKittyWallet</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>CoinKitty Wallet</name>
+  <summary>Demo wallet for the CoinKitty bounty economy</summary>
+  <description>
+    <p>CoinKitty Wallet is a desktop wallet for the CoinKitty bounty economy.
+    KittyChain does not exist yet, so it runs on a demo backend: every coin it
+    shows is a demo coin only, never real money.</p>
+  </description>
+  <launchable type="desktop-id">io.github.crhy.CoinKittyWallet.desktop</launchable>
+  <developer id="io.github.crhy"><name>rhY Thornton</name></developer>
+  <url type="homepage">https://coinkitty.org</url>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-22"/>
+  </releases>
+</component>
