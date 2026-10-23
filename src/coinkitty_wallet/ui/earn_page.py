@@ -114,6 +114,10 @@ class EarnPage(Gtk.Box):
         if bounty_id is not None:
             self.on_open_bounty(bounty_id)
 
+    def _make_bid_handler(self, bounty_id: str):
+        """Return a click handler bound to ``bounty_id`` (not the loop variable)."""
+        return lambda *_: self.on_open_bounty(bounty_id)
+
     # ---- rendering --------------------------------------------------------
 
     def refresh(self) -> None:
@@ -152,9 +156,7 @@ class EarnPage(Gtk.Box):
             row.set_activatable(True)
             bid_button = Gtk.Button(label="Bid")
             bid_button.add_css_class("pill")
-            bid_button.connect(
-                "clicked", lambda *_: self.on_open_bounty(bounty.id)
-            )
+            bid_button.connect("clicked", self._make_bid_handler(bounty.id))
             row.add_suffix(bid_button)
             self.bounty_list.append(row)
             self._row_bounty[row] = bounty.id

@@ -49,7 +49,7 @@ class BountyCard(Adw.Dialog):
     def __init__(self, backend, bounty: Bounty, on_changed=None) -> None:
         super().__init__()
         self.backend = backend
-        self.bounty = bounty
+        self.bounty_id = bounty.id
         self._on_changed = on_changed
         self._poster = bounty.poster == backend.address()
         self._last_release: tuple[int, int] | None = None
@@ -57,6 +57,10 @@ class BountyCard(Adw.Dialog):
         self.confirm_dialog: Adw.AlertDialog | None = None
 
         self.content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        self.content.set_margin_start(18)
+        self.content.set_margin_end(18)
+        self.content.set_margin_top(18)
+        self.content.set_margin_bottom(18)
         self.error_label = Gtk.Label(label="")
         self.error_label.add_css_class("error")
         self.error_label.set_visible(False)
@@ -70,19 +74,44 @@ class BountyCard(Adw.Dialog):
             self._build_bid_form()
 
         self.content.append(self.error_label)
-        self.set_child(self.content)
-        self.set_title(bounty.title)
-        self.set_content_width(360)
+
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled.set_vexpand(True)
+        scrolled.set_child(self.content)
+
+        view = Adw.ToolbarView()
+        header = Adw.HeaderBar()
+        view.add_top_bar(header)
+        view.set_content(scrolled)
+        self.set_child(view)
+
+        current = self._current_bounty()
+        title_widget = Adw.WindowTitle()
+        title_widget.set_title(current.title)
+        title_widget.set_subtitle(f"{current.status} · {format_kitty(current.escrow)} KITTY")
+        header.set_title_widget(title_widget)
+
+        self.set_title(current.title)
+        self.set_content_width(420)
+        self.set_content_height(600)
+
+    # ---- live bounty (always re-read from the backend by id) --------------
+
+    def _current_bounty(self) -> Bounty:
+        """Return the backend's current Bounty for ``bounty_id`` (never a stale copy)."""
+        return self.backend._require_bounty(self.bounty_id)
 
     # ---- top: escrow + status -------------------------------------------
 
     def _build_top(self) -> None:
         """Show the escrow amount and status at the top of the card."""
+        current = self._current_bounty()
         group = Adw.PreferencesGroup()
         group.set_title("Status")
         row = Adw.ActionRow()
-        row.set_title(f"Escrow: {format_kitty(self.bounty.escrow)} KITTY")
-        row.set_subtitle(self.bounty.status)
+        row.set_title(f"Escrow: {format_kitty(current.escrow)} KITTY")
+        row.set_subtitle(current.status)
         group.add(row)
         self.content.append(group)
 
@@ -90,14 +119,15 @@ class BountyCard(Adw.Dialog):
 
     def _build_details(self) -> None:
         """Show the bounty's description, category, location and window."""
+        current = self._current_bounty()
         group = Adw.PreferencesGroup()
         group.set_title("Details")
         desc = Adw.ActionRow()
-        desc.set_title(self.bounty.description)
+        desc.set_title(current.description)
         group.add(desc)
         meta = Adw.ActionRow()
-        meta.set_title(self.bounty.category)
-        meta.set_subtitle(self.bounty.location)
+        meta.set_title(current.category)
+        meta.set_subtitle(current.location)
         group.add(meta)
         self.content.append(group)
 
@@ -105,24 +135,32 @@ class BountyCard(Adw.Dialog):
 
     def _build_bids(self) -> None:
         """Show the lead bid and the full ranked queue of bids."""
-        ranked = rank_bids(self.bounty.bids)
-        if ranked:
-            lead = Adw.PreferencesGroup()
-            lead.set_title("Lead kitty")
-            lead_row = Adw.ActionRow()
-            lead_row.set_title(ranked[0].bidder)
-            lead_row.set_subtitle(format_kitty(ranked[0].price))
-            lead.add(lead_row)
-            self.content.append(lead)
+        current = self._current_bounty()
+        ranked = rank_bids(current.bids)
+        self.bid_list = Gtk.ListBox()
+        self.bid_list.add_css_class("boxed-list")
+        if not ranked:
+            empty = Gtk.Label(label="No bids yet")
+            empty.add_css_class("dim-label")
+            self.content.append(empty)
+            return
+
+        lead = Adw.PreferencesGroup()
+        lead.set_title("Lead kitty")
+        lead_row = Adw.ActionRow()
+        lead_row.set_title(ranked[0].bidder)
+        lead_row.set_subtitle(
+            f"{format_kitty(ranked[0].price)} KITTY · reputation {ranked[0].reputation}"
+        )
+        lead.add(lead_row)
+        self.content.append(lead)
 
         queue = Adw.PreferencesGroup()
         queue.set_title("All bids")
-        self.bid_list = Gtk.ListBox()
-        self.bid_list.add_css_class("boxed-list")
         for bid in ranked:
             row = Adw.ActionRow()
             row.set_title(bid.bidder)
-            row.set_subtitle(format_kitty(bid.price))
+            row.set_subtitle(f"{format_kitty(bid.price)} KITTY · reputation {bid.reputation}")
             self.bid_list.append(row)
         queue.add(self.bid_list)
         self.content.append(queue)
@@ -132,7 +170,7 @@ class BountyCard(Adw.Dialog):
     def _build_poster_actions(self) -> None:
         """Add Accept/deliver/release/cancel/hammer for the wallet's own bounty."""
         self._accept_buttons: dict[str, Gtk.Button] = {}
-        for bid in self.bounty.bids:
+        for bid in self._current_bounty().bids:
             button = Gtk.Button(label="Accept")
             button.set_halign(Gtk.Align.CENTER)
             button.add_css_class("suggested-action")
@@ -199,34 +237,38 @@ class BountyCard(Adw.Dialog):
 
     def _accept(self, bid_id: str) -> None:
         """Accept ``bid_id`` when the bounty is funded."""
-        if self.bounty.status != "funded":
+        current = self._current_bounty()
+        if current.status != "funded":
             self._show_error("Only a funded bounty can accept a bid")
             return
-        self.backend.accept(self.bounty.id, bid_id)
+        self.backend.accept(current.id, bid_id)
         self._notify_changed()
 
     def _on_deliver_clicked(self, *_: object) -> None:
         """Mark the assigned bounty delivered."""
-        if self.bounty.status != "assigned":
+        current = self._current_bounty()
+        if current.status != "assigned":
             self._show_error("Only an assigned bounty can be delivered")
             return
-        self.backend.deliver(self.bounty.id)
+        self.backend.deliver(current.id)
 
     def _on_release_clicked(self, *_: object) -> None:
         """Release a delivered bounty and remember the payout."""
-        if self.bounty.status != "delivered":
+        current = self._current_bounty()
+        if current.status != "delivered":
             self._show_error("Only a delivered bounty can be released")
             return
-        self._last_release = self.backend.release(self.bounty.id)
+        self._last_release = self.backend.release(current.id)
         self._notify_changed()
 
     def _on_cancel_clicked(self, *_: object) -> None:
         """Ask to cancel a destructive action through a confirm dialog."""
-        if self.bounty.status not in ("open", "funded"):
+        current = self._current_bounty()
+        if current.status not in ("open", "funded"):
             self._show_error("Only an open or funded bounty can be cancelled")
             return
         dialog = Adw.AlertDialog.new(
-            f"Cancel '{self.bounty.title}'?",
+            f"Cancel '{current.title}'?",
             "Its escrow is refunded to your balance.",
         )
         dialog.add_response("cancel", "Keep it")
@@ -239,12 +281,13 @@ class BountyCard(Adw.Dialog):
     def _on_cancel_response(self, dialog: Adw.AlertDialog, response: str) -> None:
         """Finish the cancel when the confirm dialog answers ``confirm``."""
         if response == "confirm":
-            self.backend.cancel(self.bounty.id)
+            self.backend.cancel(self.bounty_id)
             self._notify_changed()
 
     def _on_hammer_clicked(self, *_: object) -> None:
         """Split the bounty into a funded sub-bounty out of its escrow."""
-        if self.bounty.status not in ("funded", "assigned"):
+        current = self._current_bounty()
+        if current.status not in ("funded", "assigned"):
             self._show_error("Only a funded or assigned bounty can be split")
             return
         title = self.hammer_title_entry.get_text().strip()
@@ -252,7 +295,7 @@ class BountyCard(Adw.Dialog):
         if not title or price is None:
             self._show_error("Enter a title and a positive price")
             return
-        child = create_child(self.bounty, title, price, self.backend.clock())
+        child = create_child(current, title, price, self.backend.clock())
         self._sub_bounties.append(child)
         self.backend._bounties.append(child)
         self.backend._save()
@@ -266,12 +309,12 @@ class BountyCard(Adw.Dialog):
             return
         bid = Bid(
             id=uuid.uuid4().hex,
-            bounty_id=self.bounty.id,
+            bounty_id=self.bounty_id,
             bidder=self.backend.address(),
             price=price,
             note=self.bid_note_entry.get_text(),
         )
-        self.bounty.bids.append(bid)
+        self._current_bounty().bids.append(bid)
         self._notify_changed()
 
     def _notify_changed(self) -> None:
