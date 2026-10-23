@@ -25,6 +25,7 @@ from ..ui.launch_window_page import LaunchWindowPage
 from ..ui.swap_page import SwapPage
 from ..ui.earn_page import EarnPage
 from ..ui.launch_page import LaunchPage
+from ..ui.bounty_card import BountyCard
 from ..ui.style import install_css
 
 BANNER_TEXT = "Demo coins: KittyChain is not live yet. Nothing here is real money."
@@ -39,6 +40,7 @@ class WalletWindow(Adw.ApplicationWindow):
         self._backend = backend
         self._current_page = "home"
         self._selecting = False
+        self._bounty_card: BountyCard | None = None
 
         install_css()
 
@@ -73,9 +75,9 @@ class WalletWindow(Adw.ApplicationWindow):
             elif page_id == "swap":
                 page = SwapPage(backend, rng=random.Random(7))
             elif page_id == "earn":
-                page = EarnPage(backend, on_open_bounty=lambda bounty_id: None)
+                page = EarnPage(backend, on_open_bounty=self._open_bounty_card)
             elif page_id == "launch":
-                page = LaunchPage(backend, on_open_bounty=lambda bounty_id: None)
+                page = LaunchPage(backend, on_open_bounty=self._open_bounty_card)
             else:
                 status = Adw.StatusPage()
                 status.set_icon_name(icon)
@@ -240,6 +242,13 @@ class WalletWindow(Adw.ApplicationWindow):
     def _open_page(self, page_id: str) -> None:
         """Callback handed to pages so they can request a page switch."""
         self.show_page(page_id)
+
+    def _open_bounty_card(self, bounty_id: str) -> None:
+        """Open a BountyCard dialog for ``bounty_id`` (kept on the window)."""
+        bounty = next((b for b in self._backend.bounties() if b.id == bounty_id), None)
+        if bounty is None:
+            return
+        self._bounty_card = BountyCard(self._backend, bounty)
 
     # ---- navigation -------------------------------------------------------
 
