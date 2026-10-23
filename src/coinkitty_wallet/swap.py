@@ -135,6 +135,7 @@ class SimulatedSwap:
         Once :meth:`fail` was called, returns "Refunding" until
         ``started_at + refund_after`` and "Refunded" after that.
         """
+        now = int(now)
         if self._failed:
             if now >= self.started_at + self.refund_after:
                 return "Refunded"
@@ -144,6 +145,7 @@ class SimulatedSwap:
 
     def refund_countdown(self, now: int) -> int:
         """Seconds until the refund fires (0 when there is no refund or it is done)."""
+        now = int(now)
         if not self._failed:
             return 0
         return max(0, self.started_at + self.refund_after - now)

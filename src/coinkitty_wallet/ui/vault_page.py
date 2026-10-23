@@ -205,7 +205,7 @@ class VaultPage(Gtk.Box):
             nxt = child.get_next_sibling()
             self.vault_list.remove(child)
             child = nxt
-        now = self.backend.clock()
+        now = int(self.backend.clock())
         for vault in self.backend.vaults():
             asset = ASSETS[vault.asset]
             unlocked = unlocked_amount(vault, now)
@@ -234,7 +234,7 @@ class VaultPage(Gtk.Box):
 
     def _withdraw(self, vault: Vault) -> None:
         """Move everything unlocked of this vault back to the balance."""
-        moved = self.backend.withdraw_vault(vault.id, self.backend.clock())
+        moved = self.backend.withdraw_vault(vault.id, int(self.backend.clock()))
         if moved > 0:
             asset = ASSETS[vault.asset]
             self.toast_overlay.add_toast(

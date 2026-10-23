@@ -178,7 +178,7 @@ class SwapPage(Gtk.Box):
             return
         received = quote(offer, self._asset_code, amount)
         self._swap = SimulatedSwap(offer, self._asset_code, amount, received,
-                                   self.clock())
+                                   int(self.clock()))
         self._applied = False
         self._refresh_progress()
         self.stack.set_visible_child_name("progress")
@@ -238,7 +238,7 @@ class SwapPage(Gtk.Box):
         """Set each step row's icon from the current swap state."""
         if self._swap is None:
             return
-        now = self.clock()
+        now = int(self.clock())
         state = self._swap.state(now)
         if self._swap._failed:
             current = len(STEPS)
@@ -278,7 +278,7 @@ class SwapPage(Gtk.Box):
         """Advance the progress view; True keeps the timer running."""
         if self._swap is None:
             return False
-        now = self.clock()
+        now = int(self.clock())
         state = self._swap.state(now)
         self._refresh_progress()
         if state == "Done":

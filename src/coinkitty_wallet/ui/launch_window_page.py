@@ -117,7 +117,7 @@ class LaunchWindowPage(Gtk.Box):
 
     def _update_countdown(self) -> None:
         """Set the countdown text: time to the window, or that it is open."""
-        now = self.clock()
+        now = int(self.clock())
         start, end = self.backend.launch_window(now)
         if start <= now <= end:
             self.countdown_label.set_text("Launch Window is open")
@@ -126,7 +126,7 @@ class LaunchWindowPage(Gtk.Box):
 
     def _update_check_in_sensitivity(self) -> None:
         """Enable Check in only inside tonight's window and not yet checked in."""
-        now = self.clock()
+        now = int(self.clock())
         start, end = self.backend.launch_window(now)
         inside = start <= now <= end
         date = time.strftime("%Y-%m-%d", time.localtime(now))
@@ -137,7 +137,7 @@ class LaunchWindowPage(Gtk.Box):
         """Once tonight's window has passed, run the demo draw if we have an rng."""
         if self.rng is None:
             return
-        now = self.clock()
+        now = int(self.clock())
         _start, end = self.backend.launch_window(now)
         if now <= end:
             return
@@ -151,7 +151,7 @@ class LaunchWindowPage(Gtk.Box):
 
     def _on_check_in_clicked(self, button) -> None:
         """Check in for tonight's lottery, or show that it is not possible."""
-        now = self.clock()
+        now = int(self.clock())
         if self.backend.check_in(now):
             self.ticket_label.set_text("You have tonight's ticket")
             self.toast_overlay.add_toast(

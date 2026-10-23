@@ -76,6 +76,12 @@ class SwapLogicTest(unittest.TestCase):
         self.assertEqual(swap.refund_countdown(0), 24 * 3600)
         self.assertEqual(swap.refund_countdown(24 * 3600), 0)
 
+    def test_state_accepts_float_clock(self):
+        offer = Offer(id="f", sell_asset="BTC", buy_asset="KITTY",
+                      rate_kitoshi_per_sat=5 * 10**20, max_sats=10**6, maker="Kitty-ffff")
+        swap = SimulatedSwap(offer, "BTC", 1000, 5 * 10**23, 0)
+        self.assertEqual(swap.state(1003.5), "Done")
+
     def test_apply_swap_all_or_nothing(self):
         backend = DemoBackend.create("/tmp/swap-test.json", random.Random(2))
         start = backend.balance("BTC")
@@ -130,6 +136,47 @@ class SwapUiTest(unittest.TestCase):
         holder["t"] = 12
         swap._tick()
         self.assertEqual(backend.balance("BTC"), 150_000 - 10_000)
+
+    def test_swap_float_clock(self):
+        backend = DemoBackend.create("/tmp/swap-ui-float.json", random.Random(5))
+        window = WalletWindow(None, backend)
+        window.show_page("swap")
+        self.present(window)
+        swap = window._pages["swap"]
+        holder = {"t": 1000.7}
+        swap.clock = lambda: holder["t"]
+        swap._asset_code = "BTC"
+        swap.amount_entry.set_text("0.0001")
+        swap._update_form()
+        self.assertTrue(swap.swap_button.get_sensitive())
+        swap._on_swap_clicked(swap.swap_button)
+        holder["t"] = 1003.9
+        swap._tick()
+        self.assertEqual(backend.balance("BTC"), 150_000)
+        holder["t"] = 1012.1
+        swap._tick()
+        self.assertEqual(backend.balance("BTC"), 150_000 - 10_000)
+
+    def test_launch_window_float_clock(self):
+        backend = DemoBackend.create("/tmp/launch-ui-float.json", random.Random(6))
+        window = WalletWindow(None, backend)
+        window.show_page("launch-window")
+        self.present(window)
+        launch = window._pages["launch-window"]
+        launch.clock = lambda: 1000.7
+        launch._update_countdown()
+        self.assertTrue(launch.countdown_label.get_text())
+
+    def test_vault_float_clock(self):
+        backend = DemoBackend.create("/tmp/vault-ui-float.json", random.Random(7))
+        backend.create_vault("KITTY", 1000, 4_000_000_000)
+        backend.clock = lambda: 1000.7
+        window = WalletWindow(None, backend)
+        window.show_page("vault")
+        self.present(window)
+        vault_page = window._pages["vault"]
+        vault_page._refresh_vault_rows()
+        self.assertIsNotNone(vault_page.vault_list.get_first_child())
 
     def test_over_balance_insensitive(self):
         backend = DemoBackend.create("/tmp/swap-ui2.json", random.Random(4))
