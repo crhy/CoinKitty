@@ -42,6 +42,7 @@ class DemoBackend:
         self._contacts: list[Contact] = []
         self._rain_groups: list[RainGroup] = []
         self._transactions: list[Transaction] = []  # oldest first
+        self._created_at: int | None = None
 
     # ---- construction / persistence -------------------------------------
 
@@ -51,6 +52,7 @@ class DemoBackend:
         obj = cls(path)
         obj._address = encode_address(bytes(rng.randbytes(20)))
         obj._balances = {"KITTY": 25 * 10**24, "BTC": 150_000}
+        obj._created_at = obj.clock()
 
         by_name: dict[str, str] = {}
         for name in _DEMO_CONTACTS:
@@ -92,12 +94,17 @@ class DemoBackend:
         obj._contacts = [Contact(**row) for row in state["contacts"]]
         obj._rain_groups = [RainGroup(**row) for row in state["rain_groups"]]
         obj._transactions = [Transaction(**row) for row in state["transactions"]]
+        created_at = state.get("created_at")
+        if created_at is None:
+            created_at = int(os.path.getmtime(path))
+        obj._created_at = created_at
         return obj
 
     def _to_state(self) -> dict:
         return {
             "address": self._address,
             "balances": self._balances,
+            "created_at": self._created_at,
             "contacts": [asdict(c) for c in self._contacts],
             "rain_groups": [asdict(g) for g in self._rain_groups],
             "transactions": [asdict(t) for t in self._transactions],
@@ -134,6 +141,30 @@ class DemoBackend:
     def transactions(self) -> list[Transaction]:
         """Transaction history, newest first."""
         return list(reversed(self._transactions))
+
+    def days_since_created(self, now: int) -> int:
+        """Whole days since creation, counting the creation day as day 1.
+
+        ``now`` is Unix seconds. Returns ``1`` when ``now`` is on the creation
+        day, and grows by one per whole 86400-second day elapsed.
+        """
+        if self._created_at is None:
+            raise ValueError("created_at is unknown")
+        return (now - self._created_at) // 86400 + 1
+
+    def earned_today(self, asset: str, now: int) -> int:
+        """Sum of "receive" transactions in ``asset`` on ``now``'s local day.
+
+        A transaction counts when its timestamp falls in the same local
+        calendar day (year, month, day via :func:`time.localtime`) as ``now``.
+        """
+        now_day = time.localtime(now)[:3]
+        total = 0
+        for txn in self._transactions:
+            if txn.kind == "receive" and txn.asset == asset:
+                if time.localtime(txn.timestamp)[:3] == now_day:
+                    total += txn.amount
+        return total
 
     # ---- mutations (each saves the file) --------------------------------
 

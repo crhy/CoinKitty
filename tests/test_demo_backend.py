@@ -1,11 +1,13 @@
 import os
 import unittest
 
+import json
 import random
 import tempfile
+import time
 
 from coinkitty_wallet.demo_backend import DemoBackend
-from coinkitty_wallet.models import Contact, RainGroup
+from coinkitty_wallet.models import Contact, RainGroup, Transaction
 
 
 class DemoBackendTest(unittest.TestCase):
@@ -26,6 +28,50 @@ class DemoBackendTest(unittest.TestCase):
         self.assertEqual(len(reloaded.rain_groups()), 2)
         favorites = {c.name for c in reloaded.contacts() if c.favorite}
         self.assertEqual(favorites, {"Babysitter", "Julie"})
+
+    def test_created_at_round_trip(self):
+        wallet = DemoBackend.create(self.path, random.Random(42))
+        reloaded = DemoBackend.load(self.path)
+        self.assertIsNotNone(wallet._created_at)
+        self.assertEqual(reloaded._created_at, wallet._created_at)
+
+    def test_days_since_created(self):
+        wallet = DemoBackend.create(self.path, random.Random(42))
+        created = wallet._created_at
+        self.assertEqual(wallet.days_since_created(created), 1)
+        self.assertEqual(wallet.days_since_created(created + 86400), 2)
+        self.assertEqual(wallet.days_since_created(created + 3 * 86400 + 5), 4)
+
+    def test_load_without_created_at_uses_mtime(self):
+        wallet = DemoBackend.create(self.path, random.Random(42))
+        with open(self.path) as handle:
+            state = json.load(handle)
+        state.pop("created_at")
+        old = self.path + ".old.json"
+        with open(old, "w") as handle:
+            json.dump(state, handle)
+        reloaded = DemoBackend.load(old)
+        self.assertEqual(reloaded._created_at, int(os.path.getmtime(old)))
+
+    def test_earned_today(self):
+        wallet = DemoBackend.create(self.path, random.Random(42))
+        lt = time.localtime()
+        noon = int(time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 12, 0, 0, 0, 0, lt.tm_isdst)))
+        wallet._transactions.append(Transaction(
+            id="r1", kind="receive", asset="KITTY", amount=2 * 10**24,
+            counterparty="A", memo="", timestamp=noon))
+        wallet._transactions.append(Transaction(
+            id="r2", kind="receive", asset="KITTY", amount=3 * 10**24,
+            counterparty="B", memo="", timestamp=noon + 60))
+        wallet._transactions.append(Transaction(
+            id="r3", kind="receive", asset="KITTY", amount=7 * 10**24,
+            counterparty="C", memo="", timestamp=noon + 3 * 86400))
+        wallet._transactions.append(Transaction(
+            id="r4", kind="receive", asset="BTC", amount=99,
+            counterparty="D", memo="", timestamp=noon))
+        self.assertEqual(wallet.earned_today("KITTY", noon), 5 * 10**24)
+        self.assertEqual(wallet.earned_today("BTC", noon), 99)
+        self.assertEqual(wallet.earned_today("KITTY", noon + 3 * 86400), 7 * 10**24)
 
     def test_send_reduces_and_records(self):
         wallet = DemoBackend.create(self.path, random.Random(1))

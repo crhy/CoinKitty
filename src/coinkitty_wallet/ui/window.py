@@ -13,6 +13,9 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gtk
 
 from ..pages import PAGES, BOTTOM_BAR, page_title
+from ..ui.home_page import HomePage
+from ..ui.wallet_page import WalletPage
+from ..ui.style import install_css
 
 BANNER_TEXT = "Demo coins: KittyChain is not live yet. Nothing here is real money."
 
@@ -27,15 +30,25 @@ class WalletWindow(Adw.ApplicationWindow):
         self._current_page = "home"
         self._selecting = False
 
-        # ---- content: one placeholder page per PAGES entry -----------------
+        install_css()
+
+        # ---- content: one page per PAGES entry -----------------------------
         self.content_stack = Gtk.Stack()
         self.content_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        self._pages: dict[str, Gtk.Widget] = {}
         for page_id, title, icon in PAGES:
-            status = Adw.StatusPage()
-            status.set_icon_name(icon)
-            status.set_title(title)
-            status.set_description("Coming soon")
-            self.content_stack.add_named(status, page_id)
+            if page_id == "home":
+                page = HomePage(backend, self._open_page)
+            elif page_id == "wallet":
+                page = WalletPage(backend)
+            else:
+                status = Adw.StatusPage()
+                status.set_icon_name(icon)
+                status.set_title(title)
+                status.set_description("Coming soon")
+                page = status
+            self.content_stack.add_named(page, page_id)
+            self._pages[page_id] = page
 
         # ---- left sidebar: main menu --------------------------------------
         self.menu_list = Gtk.ListBox()
@@ -51,9 +64,20 @@ class WalletWindow(Adw.ApplicationWindow):
             self._menu_row_pages[row] = page_id
         self.menu_list.connect("row-activated", self._on_menu_row_activated)
 
+        # ---- select the Home menu row at startup ---------------------------
+        self._selecting = True
+        try:
+            self.menu_list.select_row(self._menu_rows["home"])
+        finally:
+            self._selecting = False
+
         # ---- right sidebar: favorites -------------------------------------
         favorites_widget = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        favorites_widget.append(Gtk.Label(label="Favorites"))
+        favorites_heading = Gtk.Label(label="Favorites")
+        favorites_heading.set_margin_top(12)
+        favorites_heading.set_margin_bottom(6)
+        favorites_heading.add_css_class("heading")
+        favorites_widget.append(favorites_heading)
         self.favorites_list = Gtk.ListBox()
         self._favorite_row_pages: dict[Adw.ActionRow, str] = {}
         for contact in backend.contacts():
@@ -109,9 +133,11 @@ class WalletWindow(Adw.ApplicationWindow):
             lambda *_: self.right_split.set_show_sidebar(right_toggle.get_active()),
         )
 
-        bottom_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        bottom_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         bottom_bar.set_halign(Gtk.Align.CENTER)
         bottom_bar.set_homogeneous(True)
+        bottom_bar.set_margin_top(8)
+        bottom_bar.set_margin_bottom(8)
         self.bottom_buttons: dict[str, Gtk.Button] = {}
         for page_id in BOTTOM_BAR:
             button = Gtk.Button(label=page_title(page_id))
@@ -149,6 +175,10 @@ class WalletWindow(Adw.ApplicationWindow):
     def _make_bottom_handler(self, page_id: str):
         return lambda *_: self.show_page(page_id)
 
+    def _open_page(self, page_id: str) -> None:
+        """Callback handed to pages so they can request a page switch."""
+        self.show_page(page_id)
+
     # ---- navigation -------------------------------------------------------
 
     def show_page(self, page_id: str) -> None:
@@ -164,6 +194,9 @@ class WalletWindow(Adw.ApplicationWindow):
                 self.menu_list.select_row(self._menu_rows[page_id])
             finally:
                 self._selecting = False
+        page = self._pages.get(page_id)
+        if page is not None and hasattr(page, "refresh"):
+            page.refresh()
 
     def current_page(self) -> str:
         """Return the id of the page currently shown."""
