@@ -225,6 +225,11 @@ class SwapPage(Gtk.Box):
             self._step_rows.append(row)
         content.append(group)
 
+        self.progress_note_label = Gtk.Label(label=NOTE_TEXT)
+        self.progress_note_label.add_css_class("warning")
+        self.progress_note_label.set_wrap(True)
+        content.append(self.progress_note_label)
+
         self.refund_label = Gtk.Label(label="")
         self.refund_label.add_css_class("warning")
         self.refund_label.set_wrap(True)
@@ -245,6 +250,7 @@ class SwapPage(Gtk.Box):
         content.append(self.done_button)
         self.fail_button.set_visible(True)
         self.done_button.set_visible(False)
+        self.progress_box = box
         return box
 
     def _refresh_progress(self) -> None:
@@ -253,7 +259,7 @@ class SwapPage(Gtk.Box):
             return
         now = int(self.clock())
         state = self._swap.state(now)
-        if self._swap._failed:
+        if self._swap._failed or state == "Done":
             current = len(STEPS)
         else:
             current = min((now - self._swap.started_at) // 3, len(STEPS) - 1)

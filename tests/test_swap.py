@@ -12,6 +12,7 @@ import unittest
 from coinkitty_wallet.demo_backend import DemoBackend
 from coinkitty_wallet.units import ASSETS, BTC, KITTY, KITOSHI_PER_KITTY
 from coinkitty_wallet.ui.window import WalletWindow
+from coinkitty_wallet.ui.swap_page import NOTE_TEXT
 from coinkitty_wallet.swap import (
     DEMO_RATE,
     STEPS,
@@ -275,6 +276,54 @@ class SwapUiTest(unittest.TestCase):
         page._tick()
         self.assertTrue(page.done_button.get_visible())
         self.assertFalse(page.fail_button.get_visible())
+
+    def test_done_shows_check_on_every_step(self):
+        backend = DemoBackend.create("/tmp/swap-ui-done.json", random.Random(14))
+        window = WalletWindow(None, backend)
+        window.show_page("swap")
+        self.present(window)
+        page = window._pages["swap"]
+        page._asset_code = "BTC"
+        page.amount_entry.set_text("0.0001")
+        self._pump()
+        page._on_swap_clicked(page.swap_button)
+        started = page._swap.started_at
+        holder = {"t": float(started)}
+        page.clock = lambda: holder["t"]
+        holder["t"] = float(started + 12)
+        page._tick()
+        for stack, _spinner in page.step_icons:
+            self.assertEqual(stack.get_visible_child_name(), "done")
+
+    def test_progress_shows_simulated_notice(self):
+        backend = DemoBackend.create("/tmp/swap-ui-notice.json", random.Random(15))
+        window = WalletWindow(None, backend)
+        window.show_page("swap")
+        self.present(window)
+        page = window._pages["swap"]
+        page._asset_code = "BTC"
+        page.amount_entry.set_text("0.0001")
+        self._pump()
+        page._on_swap_clicked(page.swap_button)
+
+        def find_notice(widget, depth):
+            if depth > 6:
+                return False
+            child = widget.get_first_child()
+            n = 0
+            while child is not None:
+                nxt = child.get_next_sibling()
+                if isinstance(child, Gtk.Label) and child.get_text() == NOTE_TEXT:
+                    return True
+                if find_notice(child, depth + 1):
+                    return True
+                child = nxt
+                n += 1
+                if n >= 50:
+                    break
+            return False
+
+        self.assertTrue(find_notice(page.progress_box, 0))
 
 
 if __name__ == "__main__":
