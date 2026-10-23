@@ -15,6 +15,7 @@ from gi.repository import Adw, Gtk
 from ..pages import PAGES, BOTTOM_BAR, page_title
 from ..ui.home_page import HomePage
 from ..ui.wallet_page import WalletPage
+from ..ui.send_page import SendPage
 from ..ui.style import install_css
 
 BANNER_TEXT = "Demo coins: KittyChain is not live yet. Nothing here is real money."
@@ -41,6 +42,8 @@ class WalletWindow(Adw.ApplicationWindow):
                 page = HomePage(backend, self._open_page)
             elif page_id == "wallet":
                 page = WalletPage(backend)
+            elif page_id == "send":
+                page = SendPage(backend, on_open_page=self.show_page)
             else:
                 status = Adw.StatusPage()
                 status.set_icon_name(icon)
@@ -80,6 +83,7 @@ class WalletWindow(Adw.ApplicationWindow):
         favorites_widget.append(favorites_heading)
         self.favorites_list = Gtk.ListBox()
         self._favorite_row_pages: dict[Adw.ActionRow, str] = {}
+        self._favorite_row_contact: dict[Adw.ActionRow, str] = {}
         for contact in backend.contacts():
             if contact.favorite:
                 row = Adw.ActionRow()
@@ -88,6 +92,7 @@ class WalletWindow(Adw.ApplicationWindow):
                 row.set_activatable(True)
                 self.favorites_list.append(row)
                 self._favorite_row_pages[row] = "send"
+                self._favorite_row_contact[row] = contact.id
         for group in backend.rain_groups():
             if group.favorite:
                 row = Adw.ActionRow()
@@ -171,6 +176,9 @@ class WalletWindow(Adw.ApplicationWindow):
         page_id = self._favorite_row_pages.get(row)
         if page_id is not None:
             self.show_page(page_id)
+            contact_id = self._favorite_row_contact.get(row)
+            if page_id == "send" and contact_id is not None:
+                self._pages["send"].start_with_contact(contact_id)
 
     def _make_bottom_handler(self, page_id: str):
         return lambda *_: self.show_page(page_id)
