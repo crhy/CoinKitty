@@ -15,12 +15,14 @@ from dataclasses import asdict
 from typing import Callable
 
 from .bech32m import encode_address, is_valid_address
-from .models import Contact, RainGroup, Transaction, Vault
+from .bounties import accept, cancel, create_child, deliver, fund, release
+from .models import Bid, Bounty, Contact, RainGroup, Transaction, Vault
 from .rain import split_equal, validate_custom
 from .vaults import unlocked_amount
 
 _DEMO_CONTACTS = ("Babysitter", "Julie", "Rick", "Sam", "Maya")
 _DEMO_FAVORITES = frozenset({"Babysitter", "Julie"})
+_DEMO_POSTERS = ("Neighborhood", "Downtown", "Riverside", "Hilltop", "Old Town", "Market Row")
 
 
 def _default_clock() -> int:
@@ -30,6 +32,54 @@ def _default_clock() -> int:
 def _is_money(value: object) -> bool:
     """True for a positive int that is not a bool (True is an int in Python)."""
     return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def _seed_bounties(now: int) -> list[Bounty]:
+    """Build the six demo open bounties other people posted.
+
+    The "Build a shed" bounty is funded and carries two funded sub-bounties
+    carved out of its escrow. Money is KITTY's smallest unit; windows are
+    Unix-second ints.
+    """
+    day = 86400
+    specs = (
+        ("seed-smoothie", "Neighborhood", "Smoothie", "A fresh-fruit smoothie.", "Food", "Corner cafe", 10**24, 2),
+        ("seed-cello", "Downtown", "Cello lesson", "One hour of cello tuition.", "Music", "Recital hall", 2 * 10**24, 5),
+        ("seed-dishwasher", "Riverside", "Dishwasher shift", "Unload and load a dishwasher.", "Chores", "Community kitchen", 10**24, 1),
+        ("seed-carwash", "Hilltop", "Car wash", "Wash and wax one car.", "Errands", "Gas station bay", 3 * 10**24, 3),
+        ("seed-guitar", "Old Town", "Guitar for sale", "Acoustic guitar, good condition.", "Goods", "Flea market", 5 * 10**24, 7),
+    )
+    bounties: list[Bounty] = []
+    for bid_id, poster, title, description, category, location, price, window_days in specs:
+        bounties.append(Bounty(
+            id=bid_id,
+            poster=poster,
+            title=title,
+            description=description,
+            category=category,
+            location=location,
+            window_start=now,
+            window_end=now + window_days * day,
+            price=price,
+        ))
+
+    shed = Bounty(
+        id="seed-shed",
+        poster="Market Row",
+        title="Build a shed",
+        description="Assemble a backyard storage shed.",
+        category="Skills",
+        location="Rental lot",
+        window_start=now,
+        window_end=now + 14 * day,
+        price=10 * 10**24,
+        status="funded",
+        escrow=10 * 10**24,
+    )
+    bounties.append(shed)
+    bounties.append(create_child(shed, "Dig the foundation", 4 * 10**24, now))
+    bounties.append(create_child(shed, "Raise the walls", 3 * 10**24, now))
+    return bounties
 
 
 class DemoBackend:
@@ -48,6 +98,7 @@ class DemoBackend:
         self._checked_in: list[str] = []  # local dates the user checked in
         self._drawn: list[str] = []  # local dates the lottery was drawn
         self._pool: int = 2 * 10**24  # demo prize pool, KITTY
+        self._bounties: list[Bounty] = []
 
     # ---- construction / persistence -------------------------------------
 
@@ -85,6 +136,7 @@ class DemoBackend:
                 member_ids=[by_name["Julie"], by_name["Maya"]],
             )
         )
+        obj._bounties = _seed_bounties(obj.clock())
         obj._save()
         return obj
 
@@ -107,6 +159,10 @@ class DemoBackend:
         obj._checked_in = list(state.get("checked_in", []))
         obj._drawn = list(state.get("drawn", []))
         obj._pool = state.get("pool", 2 * 10**24)
+        obj._bounties = [
+            Bounty(**{**row, "bids": [Bid(**bid) for bid in row.get("bids", [])]})
+            for row in state.get("bounties", [])
+        ]
         return obj
 
     def _to_state(self) -> dict:
@@ -121,6 +177,7 @@ class DemoBackend:
             "checked_in": list(self._checked_in),
             "drawn": list(self._drawn),
             "pool": self._pool,
+            "bounties": [asdict(b) for b in self._bounties],
         }
 
     def _save(self) -> None:
@@ -437,6 +494,107 @@ class DemoBackend:
             ))
         self._save()
         return won
+
+    # ---- bounties --------------------------------------------------------
+
+    def bounties(self) -> list[Bounty]:
+        """All bounty cards, oldest first."""
+        return list(self._bounties)
+
+    def my_posted(self) -> list[Bounty]:
+        """Bounties the wallet's own address posted."""
+        return [b for b in self._bounties if b.poster == self._address]
+
+    def _require_bounty(self, bounty_id: str) -> Bounty:
+        for bounty in self._bounties:
+            if bounty.id == bounty_id:
+                return bounty
+        raise ValueError(f"no bounty with id {bounty_id!r}")
+
+    def post_bounty(self, title: str, description: str, category: str,
+                    location: str, price: int, window_days: int = 7) -> Bounty:
+        """Post an open bounty from the wallet's own address and save it."""
+        if not _is_money(price):
+            raise ValueError("price must be a positive int (bools are not money)")
+        if not isinstance(window_days, int) or isinstance(window_days, bool) or window_days < 1:
+            raise ValueError("window_days must be an int >= 1")
+        now = self.clock()
+        bounty = Bounty(
+            id=uuid.uuid4().hex,
+            poster=self._address,
+            title=title,
+            description=description,
+            category=category,
+            location=location,
+            window_start=now,
+            window_end=now + window_days * 86400,
+            price=price,
+        )
+        self._bounties.append(bounty)
+        self._save()
+        return bounty
+
+    def place_demo_bids(self, bounty_id: str, rng) -> list[Bid]:
+        """Add three demo bids ("Kitty-<hex>") within +/-20% of the price."""
+        bounty = self._require_bounty(bounty_id)
+        low = bounty.price * 80 // 100
+        high = bounty.price * 120 // 100
+        placed: list[Bid] = []
+        for _ in range(3):
+            bid = Bid(
+                id=uuid.uuid4().hex,
+                bounty_id=bounty.id,
+                bidder=f"Kitty-{rng.randrange(16 ** 8):08x}",
+                price=rng.randrange(low, high + 1),
+                reputation=rng.randint(1, 100),
+            )
+            bounty.bids.append(bid)
+            placed.append(bid)
+        self._save()
+        return placed
+
+    def fund(self, bounty_id: str) -> Bounty:
+        """Fund a bounty: move its price from the KITTY balance into escrow."""
+        bounty = self._require_bounty(bounty_id)
+        self._balances["KITTY"] = fund(bounty, self.balance("KITTY"))
+        self._save()
+        return bounty
+
+    def accept(self, bounty_id: str, bid_id: str) -> Bounty:
+        """Assign a funded bounty to one of its bids."""
+        bounty = self._require_bounty(bounty_id)
+        accept(bounty, bid_id)
+        self._save()
+        return bounty
+
+    def deliver(self, bounty_id: str) -> Bounty:
+        """Mark an assigned bounty as delivered now."""
+        bounty = self._require_bounty(bounty_id)
+        deliver(bounty, self.clock())
+        self._save()
+        return bounty
+
+    def release(self, bounty_id: str) -> tuple[int, int]:
+        """Release a delivered bounty; refund the poster's balance.
+
+        Returns ``(paid_to_hunter, refunded_to_poster)``. The refund returns to
+        the wallet's KITTY balance only when the wallet itself posted the bounty.
+        """
+        bounty = self._require_bounty(bounty_id)
+        paid, refunded = release(bounty)
+        if bounty.poster == self._address and refunded > 0:
+            self._balances["KITTY"] = self.balance("KITTY") + refunded
+        self._save()
+        return (paid, refunded)
+
+    def cancel(self, bounty_id: str) -> Bounty:
+        """Cancel an open or funded bounty; refund its escrow to the poster."""
+        bounty = self._require_bounty(bounty_id)
+        refunded = cancel(bounty)
+        if bounty.poster == self._address and refunded > 0:
+            self._balances["KITTY"] = self.balance("KITTY") + refunded
+        self._save()
+        return bounty
 
     # ---- helpers ---------------------------------------------------------
 
