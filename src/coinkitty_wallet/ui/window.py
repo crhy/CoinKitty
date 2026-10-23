@@ -16,6 +16,8 @@ from ..pages import PAGES, BOTTOM_BAR, page_title
 from ..ui.home_page import HomePage
 from ..ui.wallet_page import WalletPage
 from ..ui.send_page import SendPage
+from ..ui.rain_page import RainPage
+from ..ui.contacts_page import ContactsPage
 from ..ui.style import install_css
 
 BANNER_TEXT = "Demo coins: KittyChain is not live yet. Nothing here is real money."
@@ -44,6 +46,19 @@ class WalletWindow(Adw.ApplicationWindow):
                 page = WalletPage(backend)
             elif page_id == "send":
                 page = SendPage(backend, on_open_page=self.show_page)
+            elif page_id == "rain":
+                page = RainPage(
+                    backend,
+                    on_open_page=self.show_page,
+                    on_changed=self.refresh_favorites,
+                )
+            elif page_id == "contacts":
+                page = ContactsPage(
+                    backend,
+                    on_open_page=self.show_page,
+                    on_changed=self.refresh_favorites,
+                    on_pay=lambda cid: self._pages["send"].start_with_contact(cid),
+                )
             else:
                 status = Adw.StatusPage()
                 status.set_icon_name(icon)
@@ -75,40 +90,25 @@ class WalletWindow(Adw.ApplicationWindow):
             self._selecting = False
 
         # ---- right sidebar: favorites -------------------------------------
-        favorites_widget = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.favorites_widget = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         favorites_heading = Gtk.Label(label="Favorites")
         favorites_heading.set_margin_top(12)
         favorites_heading.set_margin_bottom(6)
         favorites_heading.add_css_class("heading")
-        favorites_widget.append(favorites_heading)
+        self.favorites_widget.append(favorites_heading)
         self.favorites_list = Gtk.ListBox()
         self._favorite_row_pages: dict[Adw.ActionRow, str] = {}
         self._favorite_row_contact: dict[Adw.ActionRow, str] = {}
-        for contact in backend.contacts():
-            if contact.favorite:
-                row = Adw.ActionRow()
-                row.set_title(contact.name)
-                row.set_subtitle("Contact")
-                row.set_activatable(True)
-                self.favorites_list.append(row)
-                self._favorite_row_pages[row] = "send"
-                self._favorite_row_contact[row] = contact.id
-        for group in backend.rain_groups():
-            if group.favorite:
-                row = Adw.ActionRow()
-                row.set_title(group.name)
-                row.set_subtitle("Rain group")
-                row.set_activatable(True)
-                self.favorites_list.append(row)
-                self._favorite_row_pages[row] = "rain"
-        favorites_widget.append(self.favorites_list)
+        self._favorite_row_group: dict[Adw.ActionRow, str] = {}
+        self._build_favorite_rows()
+        self.favorites_widget.append(self.favorites_list)
         self.favorites_list.connect("row-activated", self._on_favorite_activated)
 
         # ---- split views --------------------------------------------------
         self.right_split = Adw.OverlaySplitView()
         self.right_split.set_sidebar_position(Gtk.PackType.END)
         self.right_split.set_content(self.content_stack)
-        self.right_split.set_sidebar(favorites_widget)
+        self.right_split.set_sidebar(self.favorites_widget)
 
         self.left_split = Adw.OverlaySplitView()
         self.left_split.set_sidebar(self.menu_list)
@@ -174,11 +174,48 @@ class WalletWindow(Adw.ApplicationWindow):
 
     def _on_favorite_activated(self, list_box, row, user_initiated):
         page_id = self._favorite_row_pages.get(row)
-        if page_id is not None:
-            self.show_page(page_id)
-            contact_id = self._favorite_row_contact.get(row)
-            if page_id == "send" and contact_id is not None:
-                self._pages["send"].start_with_contact(contact_id)
+        if page_id is None:
+            return
+        self.show_page(page_id)
+        contact_id = self._favorite_row_contact.get(row)
+        if page_id == "send" and contact_id is not None:
+            self._pages["send"].start_with_contact(contact_id)
+        group_id = self._favorite_row_group.get(row)
+        if page_id == "rain" and group_id is not None:
+            self._pages["rain"].preselect_group(group_id)
+
+    def refresh_favorites(self) -> None:
+        """Rebuild the favorites sidebar from the current backend state."""
+        self._build_favorite_rows()
+
+    def _build_favorite_rows(self) -> None:
+        """Clear and repopulate the favorites list from backend favorites."""
+        self._favorite_row_pages = {}
+        self._favorite_row_contact = {}
+        self._favorite_row_group = {}
+        child = self.favorites_list.get_first_child()
+        while child is not None:
+            nxt = child.get_next_sibling()
+            self.favorites_list.remove(child)
+            child = nxt
+        for contact in self._backend.contacts():
+            if contact.favorite:
+                row = Adw.ActionRow()
+                row.set_title(contact.name)
+                row.set_subtitle("Contact")
+                row.set_activatable(True)
+                self.favorites_list.append(row)
+                self._favorite_row_pages[row] = "send"
+                self._favorite_row_contact[row] = contact.id
+        for group in self._backend.rain_groups():
+            if group.favorite:
+                row = Adw.ActionRow()
+                row.set_title(group.name)
+                row.set_subtitle("Rain group")
+                row.set_activatable(True)
+                self.favorites_list.append(row)
+                self._favorite_row_pages[row] = "rain"
+                self._favorite_row_group[row] = group.id
 
     def _make_bottom_handler(self, page_id: str):
         return lambda *_: self.show_page(page_id)

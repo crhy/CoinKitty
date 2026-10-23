@@ -2,6 +2,29 @@
 
 from __future__ import annotations
 
+from .models import RainGroup
+
+
+def rain_recipients(groups: list[RainGroup], checked_ids) -> list[str]:
+    """Contact ids to rain on: the union of the checked groups' members.
+
+    ``groups`` is the full list of rain groups; ``checked_ids`` is the set (or
+    list) of group ids the user selected. Members are de-duplicated and kept in
+    first-seen order, scanning groups in list order and members within each
+    group in their stored order.
+    """
+    checked = set(checked_ids)
+    seen: set[str] = set()
+    recipients: list[str] = []
+    for group in groups:
+        if group.id not in checked:
+            continue
+        for member in group.member_ids:
+            if member not in seen:
+                seen.add(member)
+                recipients.append(member)
+    return recipients
+
 
 def split_equal(total: int, member_ids: list[str]) -> dict[str, int]:
     """Split ``total`` units equally among ``member_ids``.
