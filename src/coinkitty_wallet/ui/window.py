@@ -1,0 +1,170 @@
+"""The CoinKitty desktop window: navigation, sidebars, bottom bar, placeholder pages.
+
+This is the only module that imports GTK. All page/navigation data comes from
+:mod:`coinkitty_wallet.pages`; all money data comes from the injected backend.
+"""
+
+from __future__ import annotations
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+from gi.repository import Adw, Gtk
+
+from ..pages import PAGES, BOTTOM_BAR, page_title
+
+BANNER_TEXT = "Demo coins: KittyChain is not live yet. Nothing here is real money."
+
+
+class WalletWindow(Adw.ApplicationWindow):
+    """The application window wiring navigation, favorites and the bottom bar."""
+
+    def __init__(self, app, backend):
+        super().__init__()
+        self._app = app
+        self._backend = backend
+        self._current_page = "home"
+        self._selecting = False
+
+        # ---- content: one placeholder page per PAGES entry -----------------
+        self.content_stack = Gtk.Stack()
+        self.content_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        for page_id, title, icon in PAGES:
+            status = Adw.StatusPage()
+            status.set_icon_name(icon)
+            status.set_title(title)
+            status.set_description("Coming soon")
+            self.content_stack.add_named(status, page_id)
+
+        # ---- left sidebar: main menu --------------------------------------
+        self.menu_list = Gtk.ListBox()
+        self.menu_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self._menu_rows: dict[str, Adw.ActionRow] = {}
+        self._menu_row_pages: dict[Adw.ActionRow, str] = {}
+        for page_id, title, icon in PAGES:
+            row = Adw.ActionRow()
+            row.set_title(title)
+            row.add_prefix(Gtk.Image.new_from_icon_name(icon))
+            self.menu_list.append(row)
+            self._menu_rows[page_id] = row
+            self._menu_row_pages[row] = page_id
+        self.menu_list.connect("row-activated", self._on_menu_row_activated)
+
+        # ---- right sidebar: favorites -------------------------------------
+        favorites_widget = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        favorites_widget.append(Gtk.Label(label="Favorites"))
+        self.favorites_list = Gtk.ListBox()
+        self._favorite_row_pages: dict[Adw.ActionRow, str] = {}
+        for contact in backend.contacts():
+            if contact.favorite:
+                row = Adw.ActionRow()
+                row.set_title(contact.name)
+                row.set_subtitle("Contact")
+                row.set_activatable(True)
+                self.favorites_list.append(row)
+                self._favorite_row_pages[row] = "send"
+        for group in backend.rain_groups():
+            if group.favorite:
+                row = Adw.ActionRow()
+                row.set_title(group.name)
+                row.set_subtitle("Rain group")
+                row.set_activatable(True)
+                self.favorites_list.append(row)
+                self._favorite_row_pages[row] = "rain"
+        favorites_widget.append(self.favorites_list)
+        self.favorites_list.connect("row-activated", self._on_favorite_activated)
+
+        # ---- split views --------------------------------------------------
+        self.right_split = Adw.OverlaySplitView()
+        self.right_split.set_sidebar_position(Gtk.PackType.END)
+        self.right_split.set_content(self.content_stack)
+        self.right_split.set_sidebar(favorites_widget)
+
+        self.left_split = Adw.OverlaySplitView()
+        self.left_split.set_sidebar(self.menu_list)
+        self.left_split.set_content(self.right_split)
+
+        # ---- toolbar: header + content + bottom bar + banner --------------
+        toolbar = Adw.ToolbarView()
+        header = Adw.HeaderBar()
+        toolbar.add_top_bar(header)
+        toolbar.set_content(self.left_split)
+
+        self.title_widget = Adw.WindowTitle()
+        self.title_widget.set_title("CoinKitty")
+        self.title_widget.set_subtitle(page_title(self._current_page))
+        header.set_title_widget(self.title_widget)
+
+        left_toggle = Gtk.ToggleButton(icon_name="sidebar-show-symbolic")
+        header.pack_start(left_toggle)
+        left_toggle.connect(
+            "notify::active",
+            lambda *_: self.left_split.set_show_sidebar(left_toggle.get_active()),
+        )
+        right_toggle = Gtk.ToggleButton(icon_name="starred-symbolic")
+        header.pack_end(right_toggle)
+        right_toggle.connect(
+            "notify::active",
+            lambda *_: self.right_split.set_show_sidebar(right_toggle.get_active()),
+        )
+
+        bottom_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        bottom_bar.set_halign(Gtk.Align.CENTER)
+        bottom_bar.set_homogeneous(True)
+        self.bottom_buttons: dict[str, Gtk.Button] = {}
+        for page_id in BOTTOM_BAR:
+            button = Gtk.Button(label=page_title(page_id))
+            button.add_css_class("pill")
+            button.connect("clicked", self._make_bottom_handler(page_id))
+            bottom_bar.append(button)
+            self.bottom_buttons[page_id] = button
+        toolbar.add_bottom_bar(bottom_bar)
+
+        self.banner = Adw.Banner()
+        self.banner.set_title(BANNER_TEXT)
+        self.banner.set_revealed(True)
+        toolbar.add_top_bar(self.banner)
+
+        self.set_content(toolbar)
+        self.set_default_size(1000, 720)
+
+        if app:
+            self.set_application(app)
+
+    # ---- signal handlers --------------------------------------------------
+
+    def _on_menu_row_activated(self, list_box, row, user_initiated):
+        if self._selecting:
+            return
+        page_id = self._menu_row_pages.get(row)
+        if page_id is not None:
+            self.show_page(page_id)
+
+    def _on_favorite_activated(self, list_box, row, user_initiated):
+        page_id = self._favorite_row_pages.get(row)
+        if page_id is not None:
+            self.show_page(page_id)
+
+    def _make_bottom_handler(self, page_id: str):
+        return lambda *_: self.show_page(page_id)
+
+    # ---- navigation -------------------------------------------------------
+
+    def show_page(self, page_id: str) -> None:
+        """Switch the visible page, update the subtitle, select the menu row."""
+        if page_id not in self._menu_rows:
+            raise KeyError(page_id)
+        self.content_stack.set_visible_child_name(page_id)
+        self.title_widget.set_subtitle(page_title(page_id))
+        self._current_page = page_id
+        if not self._selecting:
+            self._selecting = True
+            try:
+                self.menu_list.select_row(self._menu_rows[page_id])
+            finally:
+                self._selecting = False
+
+    def current_page(self) -> str:
+        """Return the id of the page currently shown."""
+        return self._current_page
