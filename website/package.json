@@ -1,0 +1,9 @@
+{
+  "name": "coinkitty-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Buildless CoinKitty.org website: static HTML, CSS, one dependency-free script",
+  "scripts": {
+    "dev": "node dev-server.mjs"
+  }
+}

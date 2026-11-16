@@ -1,0 +1,8 @@
+# Staged deployment bundle, produced by scripts/build-website.sh
+build/
+
+# Local noise
+.DS_Store
+node_modules/
+.wrangler/
+*.log

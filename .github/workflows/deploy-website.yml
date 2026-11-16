@@ -1,0 +1,67 @@
+# Preview, check and publish CoinKitty.org.
+#
+# Every change on main gets a build and a check before anything is published.
+# The Cloudflare step is skipped, not failed, when the repository has no
+# credentials configured (a fork, or a checkout before the owner links the
+# account), so the check never depends on someone else's secrets.
+name: deploy-website
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  website:
+    name: preview, check, deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntax check the site script and the preview server
+        run: |
+          node --check website/script.js
+          node --check website/dev-server.mjs
+
+      - name: Stage the public site
+        run: bash scripts/build-website.sh
+
+      - name: Check pages, links, headers, assets and this workflow
+        run: python3 website/check.py
+
+      - name: Dry run - prove the staged bundle is self-contained
+        run: |
+          test -f build/website/index.html
+          test -f build/website/404.html
+          test -f build/website/_headers
+          test ! -e build/website/spec
+          test ! -e build/website/.git
+          test ! -e build/website/dev-server.mjs
+          find build/website -type f -printf '  %P\n' | sort
+
+      - name: Deploy build/website to Cloudflare Pages
+        if: github.event_name == 'push' && secrets.CF_ACCOUNT_ID != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          command: pages deploy build/website --project-name=coinkitty --branch=main --commit-dirty=true
+
+      - name: Report a skipped deploy
+        if: github.event_name == 'push' && secrets.CF_ACCOUNT_ID == ''
+        run: |
+          echo "CF_ACCOUNT_ID is not set for this repository or fork."
+          echo "The bundle was staged and checked; nothing was published."
