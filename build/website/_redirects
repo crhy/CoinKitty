@@ -1,0 +1,8 @@
+# CoinKitty.org path aliases (Cloudflare Pages format).
+# Anything not staged and not listed here falls through to 404.html.
+/index.html / 301
+/whitepaper /documents/kittycoin_white_paper_version_03.pdf 301
+/whitepaper/0.3 /documents/kittycoin_white_paper_version_03.pdf 301
+/whitepaper/0.02 /documents/kittycoin_white_paper_version_02.pdf 301
+/addendum /documents/kittycoin_whitepaper_informal_addendum.pdf 301
+/home / 301

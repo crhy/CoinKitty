@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CoinKitty.org — The Future of Gamified CryptoCurrency</title>
+  <meta name="description" content="CoinKitty is a peer-to-peer bounty economy on its own fixed-supply money: anyone can post a bounty, anyone can bid to do the work, and the payment settles in KITTY.">
+  <link rel="icon" href="/assets/images/kittycoinmain_orig.jpg">
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/script.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <a class="mark" href="/">
+    <span class="mark-name">CoinKitty</span>
+    <span class="mark-tag">The Future of Gamified CryptoCurrency</span>
+  </a>
+  <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav"><span aria-hidden="true">Menu</span></button>
+  <nav class="site-nav" id="site-nav" aria-label="Sections">
+    <a href="#marketplace">Bounties</a>
+    <a href="#token">The KITTY token</a>
+    <a href="#governance">Governance</a>
+    <a href="#safety">Safety</a>
+    <a href="#wallet">Wallet</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#documents">Documents</a>
+    <a href="#art">Artwork</a>
+    <a href="https://github.com/crhy/CoinKitty">Repository</a>
+  </nav>
+</header>
+<main id="main">
+
+<section class="hero">
+  <div class="shell">
+    <h1 class="display">CoinKitty</h1>
+    <p class="lede">An open, peer-to-peer bounty economy built to replace inflationary money and the institutions that control it.</p>
+    <p>Anyone can post a <strong>bounty</strong> for any good or service, and anyone can bid to fulfil it. Payments are held in escrow, settled on CoinKitty's own chain, and backed by a reputation system that both sides build by doing honest work.</p>
+    <div class="button-row">
+      <a class="button fill" href="/documents/kittycoin_white_paper_version_03.pdf">Read White Paper Draft 0.3</a>
+      <a class="button" href="#wallet">The wallet</a>
+      <a class="button" href="#roadmap">Roadmap</a>
+    </div>
+  </div>
+</section>
+
+<section class="section dark">
+  <div class="narrow prose">
+    <p class="lede">CoinKitty is not meant to sit alongside the current economy. It is meant to replace it, one transaction at a time, with a system that nobody can inflate, censor, freeze, or capture.</p>
+  </div>
+</section>
+
+<section class="section" id="marketplace">
+  <div class="shell">
+    <div class="prose">
+      <h2 class="title">Bounties, not employers</h2>
+      <p>Employers, staffing agencies and gig platforms decide who works, set the price, and keep a share. On CoinKitty, bounties are posted and filled directly between people, with escrow instead of a boss.</p>
+      <p>A bounty carries a title, description, category, an optional coarse location (about 1 km, or "remote"), a delivery window, an offered price in KITTY, and conditions such as a minimum reputation. Any verified participant can bid with a price, a note and a link to their on-chain reputation. The wallet ranks bids, but <strong>the poster chooses</strong>.</p>
+      <pre><code>Open ──fund──▶ Funded ──accept bid──▶ Assigned ──hunter marks done──▶ Delivered
+                                                              │
+              poster confirms, or review window expires    ───┤
+                     ▼                                            ▼
+                  Released                                   Disputed ──▶ Resolved</code></pre>
+      <ul>
+        <li>Funds lock when the poster accepts a bid.</li>
+        <li>After delivery the poster has a 24-hour review window <em>(proposed)</em> to confirm or dispute; if they do nothing, funds release to the hunter automatically.</li>
+        <li>Either side can cancel by mutual agreement at any stage.</li>
+      </ul>
+      <h3>Sub-bounties: the hammer</h3>
+      <p>A bounty's escrow can fund child bounties, each with its own bids, its own hunter and its own reputation outcome. "Restore my classic car" becomes body work, paint, upholstery and engine rebuild, each awarded to a specialist, all under one top-level payment. Nesting is unbounded in principle, with a proposed depth limit of 8.</p>
+      <h3>Disputes</h3>
+      <p>Disputes go to a jury drawn at random from verified identities who have staked KITTY as jurors. Both sides submit evidence, jurors vote with commit-reveal, jurors who vote with the final majority earn a fee and jurors against it lose a small part of their stake. Either party can appeal to a larger jury. Initial jury size is 3, doubling plus one on each appeal: 3 → 7 → 15.</p>
+      <h3>Reputation</h3>
+      <ul>
+        <li>Reputation is made of signed attestations, each tied to a completed escrow, so a review cannot exist without a real payment.</li>
+        <li>Both sides rate each other; hunters rate posters too.</li>
+        <li>Scores are kept per category, so a great mechanic is not automatically a trusted tutor.</li>
+        <li>Older attestations count less, with a proposed half-life of 12 months.</li>
+        <li>Reputation is bound to an identity and cannot be transferred or sold.</li>
+      </ul>
+    </div>
+    <div class="prose">
+      <h2 class="title">What each chokepoint is replaced with</h2>
+      <table>
+        <caption>From White Paper Draft 0.3, section 3.</caption>
+        <thead><tr><th>Today</th><th>CoinKitty</th></tr></thead>
+        <tbody>
+          <tr><td>Inflationary state money</td><td>Fixed supply. No person, company, government or vote can create more KITTY.</td></tr>
+          <tr><td>Employers, staffing agencies, gig platforms</td><td>Bounties posted and filled directly between people, with escrow instead of a boss.</td></tr>
+          <tr><td>Banks and payment processors</td><td>Self-custody, peer-to-peer payments and atomic swaps. No account can be frozen.</td></tr>
+          <tr><td>Credit scores, background checks, work permits</td><td>Reputation earned by completed work.</td></tr>
+          <tr><td>Savings eroded by inflation</td><td>Savings in a fixed-supply asset, held in the saver's own vault.</td></tr>
+          <tr><td>Corporate ISPs and cloud</td><td>Mesh transport and self-hosted nodes.</td></tr>
+          <tr><td>Reporting and surveillance chokepoints</td><td>None. The protocol has no mechanism to collect, withhold, report or surveil.</td></tr>
+        </tbody>
+      </table>
+      <h3>Progress is measured by replacement, not price</h3>
+      <ol>
+        <li>The first full-time Kitty: one person who earns and spends 100% of their income in KITTY for a full year.</li>
+        <li>A complete local basket: one city where food, transport, repairs, lessons, childcare and home services can all be bought through bounties.</li>
+        <li>1,000 young earners who have each held a year of savings that no one took from them.</li>
+        <li>10,000 people earning most of their income in KITTY.</li>
+        <li>1 million verified Kitties.</li>
+        <li>More value settled through bounty escrow than through swaps.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="section dark" id="token">
+  <div class="shell">
+    <div class="prose">
+      <h2 class="title">The KITTY token</h2>
+      <ul>
+        <li><strong>The CoinKitty</strong>: the entire fixed supply, taken together.</li>
+        <li><strong>KittyCoin (KITTY)</strong>: any amount of it.</li>
+        <li><strong>kitoshi</strong>: the smallest unit. 1 CoinKitty = 10<sup>24</sup> kitoshi <em>(proposed)</em>, sixteen more decimal places than Bitcoin's satoshi. Amounts are stored as unsigned 128-bit integers.</li>
+      </ul>
+      <p>The supply is fixed at genesis; no more can ever be created. There is no ICO, no pre-sale, and no private investor allocation.</p>
+      <table>
+        <caption>Allocation and release, all percentages proposed.</caption>
+        <thead><tr><th>Allocation</th><th>Share</th><th>Release</th></tr></thead>
+        <tbody>
+          <tr><td>Bounty treasury</td><td>35%</td><td>Paid for completed protocol bounties: code, design, audits, docs, education, infrastructure.</td></tr>
+          <tr><td>Daily public auction</td><td>40%</td><td>Released in equal daily tranches over 10 years.</td></tr>
+          <tr><td>Network security pool</td><td>15%</td><td>Released to validators, relays and jurors; schedule deferred to v0.4.</td></tr>
+          <tr><td>Founding contributors</td><td>10%</td><td>4-year vesting with a 1-year cliff; every address publicly disclosed.</td></tr>
+        </tbody>
+      </table>
+      <h3>The daily auction, paid by proof of burn</h3>
+      <ul>
+        <li>Each verified identity may contribute up to a daily cap set in Bitcoin <em>(proposed: 1,000 sats)</em>, one nullifier per identity per day.</li>
+        <li>Contributions are made by sending BTC to a provably unspendable Bitcoin address; KittyChain verifies the burn through a Bitcoin light client. No one, not the founders, the foundation or the validators, ever receives the BTC.</li>
+        <li>When the day closes, everyone pays the same price: total sats burned divided by kitoshi offered.</li>
+        <li>Purchased coins are identity-bound and vest <em>(proposed: linear over 12 months)</em>. Unvested coins can stake and vote, but cannot be transferred.</li>
+      </ul>
+      <h3>Swaps, not stablecoins</h3>
+      <p>The wallet trades KITTY directly with Bitcoin at launch, and with other established coins governance approves later. Swaps use hash time-locked contracts: either both sides complete or both sides get their coins back. There are no stablecoins, no bridges, no wrapped tokens and no custodian.</p>
+    </div>
+    <figure class="frame-light">
+      <img src="/assets/images/theapp.png" alt="Archival CoinKitty app artwork committed in this repository, shown unchanged.">
+      <figcaption>App artwork from the repository, presented unchanged.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="governance">
+  <div class="prose">
+    <h2 class="title">Money buys influence, but not control</h2>
+    <p><strong>Token House</strong> proposes and passes treasury spending, fee and parameter changes, and bounty budgets, weighted by commitment. <strong>Citizen House</strong> is one verified person, one vote, and can veto Token House decisions; its majority is required alongside the Token House's for constitutional changes.</p>
+    <pre><code>W_i = min( √(S_i × L_i) × (1 + R_i),  C )</code></pre>
+    <ul>
+      <li><strong>S_i</strong>: KITTY the identity has locked for voting, at least 7 days, so tokens bought right before a vote cannot swing it.</li>
+      <li><strong>L_i</strong>: lock multiplier, about 1× at one week up to 4× at four years, declining as the unlock date approaches.</li>
+      <li><strong>R_i</strong>: reputation bonus from completed bounties, from 0 to 0.5, non-transferable.</li>
+      <li><strong>C</strong>: per-identity cap, 2% of total Token House weight before capping <em>(proposed)</em>.</li>
+    </ul>
+    <table>
+      <caption>Effect of the square root, with lock multiplier 1 and no reputation bonus.</caption>
+      <thead><tr><th>Stake</th><th>Linear weight</th><th>CoinKitty weight</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>1</td><td>1</td></tr>
+        <tr><td>100</td><td>100</td><td>10</td></tr>
+        <tr><td>10,000</td><td>10,000</td><td>100</td></tr>
+        <tr><td>1,000,000</td><td>1,000,000</td><td>1,000</td></tr>
+      </tbody>
+    </table>
+    <p>A holder with a million times more stake gets a thousand times the vote, not a million. Because weight is computed per verified identity, splitting coins across wallets does not help.</p>
+    <h3>One person, one identity, without surveillance</h3>
+    <p>Every participant becomes a verified unique human at an in-person Kitty Party. All Kitty Parties happen at the same moment worldwide during a scheduled Launch Window, so no one can attend two. At each party at least 3 already-verified members attest to each newcomer. No government, corporation or outside identity provider takes part at any stage, and no biometric data ever leaves the user's phone.</p>
+    <p>On chain, the wallet registers only a commitment and proves in zero knowledge that it owns one, plus a nullifier derived from the secret and the action's context. The chain can enforce "one purchase per person per day", "one vote per person per proposal" and "one lottery ticket per person per draw" without ever knowing which person did what.</p>
+  </div>
+</section>
+
+<section class="section dark" id="safety">
+  <div class="prose">
+    <h2 class="title">Mistakes are prevented, not reversed by an admin</h2>
+    <p>No central party can reverse a transaction. Instead the protocol makes mistakes nearly impossible and returns funds when they happen anyway.</p>
+    <ul>
+      <li><strong>Checksummed addresses.</strong> Bech32m with the prefix <code>kitty1…</code>; the checksum catches any mistake of up to 4 characters, and wallets refuse to send to an address that fails the check.</li>
+      <li><strong>Account activation.</strong> A consensus rule rejects ordinary transfers to an address that has never published its public key, so a valid-looking address no one controls can never receive coins by accident.</li>
+      <li><strong>Claimable payments.</strong> To pay someone who has not activated yet, the sender creates a payment held in protocol escrow <em>(default 30 days, maximum 365)</em>. If it is never claimed, the sender gets it back minus a lottery share <em>(proposed: 2%)</em> that goes to the Launch Window lottery pool.</li>
+      <li><strong>Time-locked vaults.</strong> Coins in a vault cannot be moved by anyone until the unlock date. No owner, guardian, governance vote or admin can open one early.</li>
+      <li><strong>Social recovery.</strong> Guardians are always chosen by the account owner; a recovery request names a new key and starts a delay <em>(proposed: 72 hours)</em> in which the original key can cancel.</li>
+      <li><strong>What the protocol will not do.</strong> No dormant-coin reclamation, no admin reversal, no confiscation, no freezing.</li>
+    </ul>
+    <h3>Young earners keep their own keys</h3>
+    <ul>
+      <li>Vaults that no one can open early, so savings cannot be taken by an adult in the same household.</li>
+      <li>A duress PIN that opens a decoy wallet with a small balance.</li>
+      <li>A spending limit that takes effect immediately when lowered and takes 72 hours <em>(proposed)</em> to raise.</li>
+      <li>An optional discreet mode: neutral app icon and name.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="wallet">
+  <div class="shell">
+    <div class="prose">
+      <h2 class="title">The wallet: simple surface, rigorous core</h2>
+      <p>Android first, and simple enough for a child: a first-time user can receive, send and save without reading anything. Keys never leave the phone's secure hardware, unlocked by fingerprint. There is no account, no email, no phone number.</p>
+      <ul>
+        <li><strong>Home</strong>: the Sun shows total holdings, the Earth today's earnings, the Moon progress toward the Mission goal, plus the QR code, the day counter and the Mercury menu.</li>
+        <li><strong>Wallet</strong>: every asset with a logo, name and balance, a portfolio chart with 1D · 1W · 1M · 6M · 1Y · All ranges.</li>
+        <li><strong>Send, Luck and Rain</strong>: pay a favourite, a scanned QR code or a pasted address; Luck pays a random contact after showing who was picked; Rain splits one payment across a whole group in one tap.</li>
+        <li><strong>Swap</strong>: atomic swaps in one screen, with a refund countdown if the other side disappears.</li>
+        <li><strong>Earn, Launch, Bounty card, Hammer</strong>: the bounty marketplace.</li>
+        <li><strong>Vault, Vote, Launch Window</strong>: savings, the two governance chambers, and the nightly check-in that gives you that night's lottery ticket.</li>
+      </ul>
+      <h3>No corporate dependencies</h3>
+      <p>No Google Play Services, no Firebase, no corporate push services, no analytics, no corporate social logins. The wallet is published as a signed APK and through F-Droid, runs on de-Googled Android, and uses Tor by default. Contacts are stored only on the phone, encrypted, and are never synced with any social network.</p>
+      <h3>Readable by everyone</h3>
+      <p>Never rely on colour alone: every asset, state and button has an icon and a text label. Contrast meets WCAG AA, text scales with the system font size, and language stays simple enough for a young reader: "Lock until June 1", not "Create time-locked vault".</p>
+    </div>
+    <figure class="frame-light">
+      <img src="/assets/images/roadmap.png" alt="Archival CoinKitty roadmap artwork committed in this repository, shown unchanged.">
+      <figcaption>Roadmap artwork from the repository, presented unchanged.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="roadmap">
+  <div class="prose">
+    <h2 class="title">Roadmap</h2>
+    <p>Months are counted from the project start.</p>
+    <table>
+      <caption>From White Paper Draft 0.3, section 15.</caption>
+      <thead><tr><th>Phase</th><th>Months</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td>0 Foundations</td><td>0–3</td><td>Publish the white paper, protocol specification and wallet design; set up the repository, contribution guide and bounty process; post the first protocol bounties.</td></tr>
+        <tr><td>1 Testnet</td><td>3–9</td><td>Public KittyChain testnet with marketplace, escrow, disputes, reputation, identity, vaults and lottery; wallet beta; testnet swaps against Bitcoin testnet; the genesis Kitty Party.</td></tr>
+        <tr><td>2 Mainnet on Oʻahu</td><td>9–15</td><td>Two independent audits, then mainnet; daily auction, BTC atomic swaps and the lottery go live. Success test: 500 completed real-world bounties with under 5% disputed.</td></tr>
+        <tr><td>3 Decentralize</td><td>15–30</td><td>Shielded pool with turnstile accounting, adaptor-signature swaps, node packages and watchtowers, mesh transport, multiple cities.</td></tr>
+        <tr><td>4 Expansion</td><td>30+</td><td>Cross-border bounties, design and 3D-printing royalties, bounty funding for OpenAirShips milestones.</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Sections marked <strong>Deferred to v0.4</strong> in the white paper are intentionally incomplete: network reward economics, the legal framework, and a CoinKitty-native stable unit if one is wanted later.</p>
+  </div>
+  <div class="shell related">
+    <h2 class="title">Related projects</h2>
+    <ul>
+      <li><a href="https://supermox.me">SuperMox</a> is the recommended node platform: one-click packages to run a node, relay, swap watchtower or juror client. It is optional; nodes run on any Linux system.</li>
+      <li><a href="https://openairships.com">OpenAirShips</a> is a long-term hardware track funded through bounties. It keeps its own repository and schedule; CoinKitty does not depend on it.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="section dark" id="documents">
+  <div class="prose">
+    <h2 class="title">Documents</h2>
+    <div class="download-list">
+      <a class="download" href="/documents/kittycoin_white_paper_version_03.pdf"><span><strong>CoinKitty White Paper — Draft 0.3 (revision 2), October 2026</strong>File size: 97 kb<br>File type: pdf</span><b>Download</b></a>
+      <a class="download" href="/documents/kittycoin_white_paper_version_02.pdf"><span><strong>CoinKitty WhitePaper Draft .02, December 2019</strong>File size: 22 kb<br>File type: pdf</span><b>Download</b></a>
+      <a class="download" href="/documents/kittycoin_whitepaper_informal_addendum.pdf"><span><strong>Informal Addendum ver .01</strong>File size: 1.6 Mb<br>File type: pdf</span><b>Download</b></a>
+    </div>
+    <p>Draft 0.3 supersedes Draft 0.02 and the Informal Addendum. The same text is maintained as Markdown in the repository: <a href="https://github.com/crhy/CoinKitty/blob/main/spec/whitepaper-v0.3.md">White Paper Draft 0.3</a> and <a href="https://github.com/crhy/CoinKitty/blob/main/spec/wallet-android.md">Android wallet design v0.1</a>.</p>
+    <p class="note">Every number on this page is quoted from those documents. Values marked <em>(proposed)</em> are starting values for discussion, not commitments.</p>
+  </div>
+</section>
+
+<section class="section" id="art">
+  <div class="prose">
+    <h2 class="title">Artwork</h2>
+    <p>Original CoinKitty concept artwork, committed in this repository and displayed without altering the originals.</p>
+  </div>
+  <div class="gallery">
+    <figure><img src="/assets/images/homepage.png" alt="Archival CoinKitty homepage artwork."><figcaption>Homepage artwork.</figcaption></figure>
+    <figure class="frame-light"><img src="/assets/images/theapp.png" alt="Archival CoinKitty app artwork."><figcaption>App artwork.</figcaption></figure>
+    <figure><img src="/assets/images/kittycoinmain_orig.jpg" alt="Archival CoinKitty concept artwork, original file."><figcaption>Concept artwork.</figcaption></figure>
+    <figure><img src="/assets/images/kittycoinmission_orig.jpg" alt="Archival CoinKitty concept artwork, original file."><figcaption>Concept artwork.</figcaption></figure>
+    <figure><img src="/assets/images/kittycoinbounty_orig.jpg" alt="Archival CoinKitty concept artwork, original file."><figcaption>Concept artwork.</figcaption></figure>
+    <figure><img src="/assets/images/kittycoinbounties_orig.jpg" alt="Archival CoinKitty concept artwork, original file."><figcaption>Concept artwork.</figcaption></figure>
+    <figure class="frame-light"><img src="/assets/images/roadmap.png" alt="Archival CoinKitty roadmap artwork."><figcaption>Roadmap artwork.</figcaption></figure>
+    <figure><img src="/assets/images/teamA.png" alt="Archival CoinKitty team artwork, first version."><figcaption>Team artwork.</figcaption></figure>
+    <figure><img src="/assets/images/TeamB.png" alt="Archival CoinKitty team artwork, second version."><figcaption>Team artwork.</figcaption></figure>
+    <figure><img src="/assets/images/contact.png" alt="Archival CoinKitty contact artwork."><figcaption>Contact artwork.</figcaption></figure>
+  </div>
+</section>
+
+<section class="section sky">
+  <div class="narrow prose">
+    <p class="lede">CoinKitty.org is a repository-based website: the source lives in this repository, every change is checked before it ships, and production is deployed from a staged folder rather than from one person's machine.</p>
+  </div>
+</section>
+
+</main>
+<footer class="site-footer">
+  <div class="shell">
+    <p><a href="https://github.com/crhy/CoinKitty">Source repository</a> · <a href="/">Home</a></p>
+    <p class="small">No trackers, no analytics, no cookies, no third-party scripts, no external fonts. The page works without JavaScript.</p>
+  </div>
+</footer>
+</body>
+</html>
